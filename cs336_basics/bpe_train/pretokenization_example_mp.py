@@ -1,6 +1,10 @@
 import os
 from typing import BinaryIO
 import regex as re
+from multiprocessing import Process
+from multiprocessing import Pool
+
+
 
 
 
@@ -50,22 +54,41 @@ def find_chunk_boundaries(
     # Make sure all boundaries are unique, but might be fewer than desired_num_chunks
     return sorted(set(chunk_boundaries))
 
+
 pattern=r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 pattern = re.compile(pattern)
-## Usage
-with open("./data/TinyStoriesV2-GPT4-train.txt", "rb") as f:
-    num_processes = 4
-    boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
 
-    # The following is a serial implementation, but you can parallelize this
-    # by sending each start/end pair to a set of processes.
-    for start, end in zip(boundaries[:-1], boundaries[1:]):
-        f.seek(start)
-        chunk = f.read(end - start).decode("utf-8", errors="ignore")
-        # Run pre-tokenization on your chunk and store the counts for each pre-token
-        
-        # split the text using the pattern
+def pre_tokenize_chunk(file_path, start_b, end_b):
+    with open(file_path, "rb") as file:
+        file.seek(start_b)
+        chunk = file.read(end_b - start_b).decode("utf-8", errors="ignore")
         text_chunks = re.finditer(pattern, chunk)
-        #print(f"chunk size: {len(list(text_chunks))}")
-        print(len(list(text_chunks)))
-        break
+        return len(list(text_chunks))
+
+## Usage
+# with open("./data/TinyStoriesV2-GPT4-train.txt", "rb") as f:
+#     num_processes = 4
+#     boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
+
+#     # The following is a serial implementation, but you can parallelize this
+#     # by sending each start/end pair to a set of processes.
+    
+#     for start, end in zip(boundaries[:-1], boundaries[1:]):
+#         f.seek(start)
+#         chunk = f.read(end - start).decode("utf-8", errors="ignore")
+#         # Run pre-tokenization on your chunk and store the counts for each pre-token
+#         print(chunk)
+
+if __name__ == "__main__":
+    with open("./data/TinyStoriesV2-GPT4-train.txt", "rb") as f:
+        num_processes = 4
+        boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
+        
+        pairs = list(zip(boundaries[:-1], boundaries[1:]))
+        args = [("./data/TinyStoriesV2-GPT4-train.txt", start, end) for start, end in pairs]
+
+    with Pool(processes=num_processes) as pool:
+        results = pool.starmap(pre_tokenize_chunk, args)
+    print("num of pre-tokenized chunks:", results)
+
+     
