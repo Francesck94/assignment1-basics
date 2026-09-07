@@ -2,6 +2,8 @@
 data/TinyStoriesV2-GPT4-train.txt
 data/TinyStoriesV2-GPT4-valid.txt
 
+cs336_assignment1_basics.pdf
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
