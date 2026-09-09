@@ -1,7 +1,9 @@
 # Large data
 data/TinyStoriesV2-GPT4-train.txt
 data/TinyStoriesV2-GPT4-valid.txt
+data/test_data.txt
 
+notebook_helper.ipynb
 cs336_assignment1_basics.pdf
 
 # Byte-compiled / optimized / DLL files

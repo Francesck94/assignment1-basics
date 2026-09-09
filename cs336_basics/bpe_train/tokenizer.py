@@ -1,4 +1,4 @@
-from utils import pre_tokenize_chunk, find_chunk_boundaries, TOKENIZE_PATTERN, split_on_special_tokens, get_pre_tokens_count, merge_pair
+from utils import find_chunk_boundaries, TOKENIZE_PATTERN, get_pre_tokens_count
 
 from multiprocessing import Pool
 import regex as re
@@ -8,6 +8,7 @@ PARALLELIZE = True
 SPECIAL_TOKENS = ["<|endoftext|>"]  # Add more special tokens as needed
 
 filename = "./data/TinyStoriesV2-GPT4-valid.txt"
+filename = "./data/test_data.txt"
 
 class Tokenizer:
     """
@@ -67,26 +68,25 @@ class Tokenizer:
         # Learn merges until we reach the desired vocab size
         num_merges_to_do = vocab_size - len(self._vocab) - len(self.special_tokens)
 
-        pair_freq = {}
+        pair_freq = None
         top_pair = None
         while num_merges_to_do > 0:
             # get the frequency of each pair of consecutive bytes in the pre-token counts
-            if top_pair is not None:
-                pair_freq = self.get_pair_freq_update(pre_tokens_count_bytes, pair_freq, top_pair)
+            if pair_freq is not None:
+                pair_freq = self._get_pair_freq_update(pre_tokens_count_bytes, pair_freq, top_pair)
             else:
-                pair_freq = self.get_pair_freq(pre_tokens_count_bytes)
+                pair_freq, index_pair = self._get_pair_freq(pre_tokens_count_bytes)
 
             if not pair_freq:
                 break  # No more pairs to merge
 
             # get the most frequent pair of consecutive bytes
-            top_pair = self.get_top_pair(pair_freq)
+            top_pair = self._get_top_pair(pair_freq)
             self.merges.append(top_pair)
 
             # merge the most frequent pair in the pre-token counts
-            pre_tokens_count_bytes = merge_pair(pre_tokens_count_bytes, top_pair)
+            pre_tokens_count_bytes = self._merge_pair(pre_tokens_count_bytes, top_pair)
 
-            # update the frequency of pairs after the merge
             # update the number of merges left to do
             num_merges_to_do -= 1
 
@@ -111,7 +111,7 @@ class Tokenizer:
         
         return vocab
 
-    def get_pair_freq(self, freq_dict: dict):
+    def _get_pair_freq(self, freq_dict: dict):
         """ Calculate the frequency of each pair of consecutive bytes in the input dictionary.
         Args:
             freq_dict (dict): A dictionary where keys are tuples of bytes and values are their frequencies.
@@ -119,7 +119,9 @@ class Tokenizer:
         Returns:
             dict: A dictionary with pairs of consecutive bytes as keys and their frequencies as values.
         """
-        
+        pair_dict = {}
+        index_pair = 0
+
         pairs_freq = {}
         for key, value in freq_dict.items():
             for first, second in zip(key, key[1:]):
@@ -128,21 +130,27 @@ class Tokenizer:
                     pairs_freq[pair] += value
                 else:
                     pairs_freq[pair] = value
-        return pairs_freq
+                    pair_dict[pair] = index_pair
+                    index_pair += 1
+        return pairs_freq, pair_dict
 
-    def get_pair_freq_update(self, freq_dict: dict, pairs_freq: dict, top_pair: tuple):
-            """ Calculate the frequency of each pair of consecutive bytes in the input dictionary.
+    def _get_pair_freq_update(self, freq_dict: dict, pairs_freq: dict, top_pair: tuple):
+            """ 
+            Update the frequency of each pair of consecutive bytes in the input dictionary.
             Args:
                 freq_dict (dict): A dictionary where keys are tuples of bytes and values are their frequencies.
-    
+                pairs_freq (dict): A dictionary with pairs of consecutive bytes as keys and their frequencies as values.
+                top_pair (tuple): The most frequent pair of consecutive bytes that was just merged.
+
             Returns:
-                dict: A dictionary with pairs of consecutive bytes as keys and their frequencies as values.
+                dict: An updated dictionary with pairs of consecutive bytes as keys and their frequencies as values.
             """
             
 
             #keys_to_update = [k for k in freq_dict.keys() if top_pair[0] in k and top_pair[1] in k]
             merged_pair = top_pair[0] + top_pair[1]
             # get the keys that contain the top pair
+            
 
             pre_tokens_with_merged_pair = []
             for key in freq_dict.keys():
@@ -171,11 +179,55 @@ class Tokenizer:
                     else:
                         pairs_freq[pair] = value
 
-            pairs_freq.pop(top_pair, None)
+            # remove the top pair from the frequency dictionary and adjacent pairs
+            keys_to_remove = []
+            pair_freq_list = list(pairs_freq.keys())
+            for i, pair in enumerate(pair_freq_list):
+                if pair == top_pair:
+                    keys_to_remove.append(pair)
+                    keys_to_remove.append(pair_freq_list[i-1]) if i > 0 else None
+                    keys_to_remove.append(pair_freq_list[i+1]) if i < len(pair_freq_list) - 1 else None
+            for key in keys_to_remove:
+                pairs_freq.pop(key, None)
+            
             return pairs_freq
 
     @staticmethod
-    def get_top_pair(stats):
+    def _merge_pair(freq_dict: dict, top_pair):
+        """
+        Merge the specified top pair in the frequency dictionary.
+
+        Args:
+            freq_dict (dict): A dictionary with keys as tuples of bytes and values as their frequencies.
+            top_pair (tuple): The pair of consecutive bytes to merge.
+
+        Returns:
+            dict: A new frequency dictionary with the top pair merged.
+        """
+        new_freq_dict = {}
+        for key, value in freq_dict.items():
+            if top_pair in zip(key, key[1:]):
+                i = 0
+                new_key = []
+                #print("found")
+                while i < len(key):
+                    if i == len(key) - 1:
+                        new_key.append(key[i])
+                        i += 1
+                        continue
+                    elif key[i] == top_pair[0] and key[i+1] == top_pair[1]:
+                        new_key.append(top_pair[0]+top_pair[1])
+                        i += 2
+                    else:
+                        new_key.append(key[i])
+                        i += 1
+                new_freq_dict[tuple(new_key)] = value
+            else:
+                new_freq_dict[key] = value
+        return new_freq_dict
+
+    @staticmethod
+    def _get_top_pair(stats):
         return max(stats, key=lambda p: (stats[p], p))
 
     #temporary
@@ -200,7 +252,7 @@ if __name__ == "__main__":
 
    tokenizer = Tokenizer(special_tokens=SPECIAL_TOKENS)
 
-   vocab_size = 1024
+   vocab_size = 270
    vocab, merges = tokenizer.train(filename, vocab_size, num_process=4, enable_mp=PARALLELIZE)
 
    print_results = False
