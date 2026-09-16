@@ -3,7 +3,9 @@ from typing import BinaryIO
 import regex as re
 from multiprocessing import Process
 from multiprocessing import Pool
+from collections import defaultdict
 
+#### pre tokenize utils #####
 
 TOKENIZE_PATTERN=r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 TOKENIZE_PATTERN = re.compile(TOKENIZE_PATTERN)
@@ -98,6 +100,14 @@ def split_on_special_tokens(chunk: str, special_tokens: list[str]) -> list[str]:
     # Filter out empty strings and return the list of sub-chunks
     return [sub_chunk for sub_chunk in sub_chunks if sub_chunk.strip()]
 
+################
+#temporary
+def convert_key_to_tuple_of_bytes(key):
+    """
+    Convert a key to bytes.
+    """
+    return tuple(c.encode('utf-8') for c in key)
+
 
 def convert_to_bytes(pre_token):
     """
@@ -130,4 +140,33 @@ def merge_pair(freq_dict: dict, top_pair):
     return new_freq_dict
 
 
+def get_pair_dict_and_freq(freq_dict: dict):
+        """ Calculate the frequency of each pair of consecutive bytes in the input dictionary.
+        Args:
+            freq_dict (dict): A dictionary where keys are tuples of bytes and values are their frequencies.
+
+        Returns:
+            tuple: A tuple containing two dictionaries:
+                - dict: A dictionary with pairs of consecutive bytes as keys and their frequencies as values.
+                - dict: A dictionary with pairs of consecutive bytes as keys and sets of pre-tokens containing the pair as values.
+        """
+        pair_pre_tokens_dict = defaultdict(set)
+        pairs_freq_dict = {}
+        for key, value in freq_dict.items():
+            for first, second in zip(key, key[1:]):
+                pair = (first, second)
+                if pair in pairs_freq_dict:
+                    pairs_freq_dict[pair] += value
+                else:
+                    pairs_freq_dict[pair] = value
+
+                pair_pre_tokens_dict[pair].add(key)
+        return pairs_freq_dict, pair_pre_tokens_dict
+
+
+def get_pair_from_token(token):
+    pair_list = []
+    for i in range(len(token) - 1):
+        pair_list.append((token[i], token[i + 1]))
+    return pair_list
 

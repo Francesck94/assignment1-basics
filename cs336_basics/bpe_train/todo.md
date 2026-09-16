@@ -1,0 +1,1 @@
+- capire perchè si rompe quando fa la remove del pre token dall lista dei pre tokens relativi alla coppia modificata
