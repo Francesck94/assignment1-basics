@@ -108,6 +108,12 @@ def convert_key_to_tuple_of_bytes(key):
     """
     return tuple(c.encode('utf-8') for c in key)
 
+def convert_key_to_tuple_of_bytes_v2(key):
+    """
+    Convert a key to bytes.
+    """
+    return tuple(bytes([b]) for b in key.encode('utf-8'))
+
 
 def convert_to_bytes(pre_token):
     """

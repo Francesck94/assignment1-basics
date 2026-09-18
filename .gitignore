@@ -1,3 +1,5 @@
+# cprofile output
+*.out
 # Large data
 data/TinyStoriesV2-GPT4-train.txt
 data/TinyStoriesV2-GPT4-valid.txt

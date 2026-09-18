@@ -1,4 +1,4 @@
-from cs336_basics.bpe_train.utils import find_chunk_boundaries, TOKENIZE_PATTERN, get_pre_tokens_count, convert_key_to_tuple_of_bytes
+from cs336_basics.bpe_train.utils import find_chunk_boundaries, TOKENIZE_PATTERN, get_pre_tokens_count, convert_key_to_tuple_of_bytes, convert_key_to_tuple_of_bytes_v2
 import copy
 from multiprocessing import Pool
 from collections import defaultdict
@@ -10,6 +10,8 @@ SPECIAL_TOKENS = ["<|endoftext|>"]  # Add more special tokens as needed
 
 filename = "./data/TinyStoriesV2-GPT4-valid.txt"
 # filename = "./data/test_data.txt"
+filename = '/Users/a415137/personal_projects/cs336/assignment1-basics/tests/fixtures/corpus.en'
+filename = '/Users/a415137/personal_projects/cs336/assignment1-basics/tests/fixtures/tinystories_sample_5M.txt'
 
 
 class Tokenizer:
@@ -39,7 +41,7 @@ class Tokenizer:
 
             # only for testing purposes, limit to the first 4 chunks
             # TODO: remove this line after testing
-            boundaries = boundaries[:2]
+            #boundaries = boundaries[:2]
 
         if enable_mp:
             pairs = list(zip(boundaries[:-1], boundaries[1:]))
@@ -59,10 +61,10 @@ class Tokenizer:
                         pre_tokens_count[term] = count
 
         # return pre_tokens_count as bytes tuples
-        pre_tokens_count_bytes = {convert_key_to_tuple_of_bytes(k): v for k, v in pre_tokens_count.items()}
+        pre_tokens_count_bytes = {convert_key_to_tuple_of_bytes_v2(k): v for k, v in pre_tokens_count.items()}
 
         # Learn merges until we reach the desired vocab size
-        num_merges_to_do = vocab_size - len(self._vocab) - len(self.special_tokens)
+        num_merges_to_do = vocab_size - self.base_vocab_size - len(self.special_tokens)
 
         pair_freq_dict, pair_pre_tokens_dict = self._get_pair_dict_and_freq(pre_tokens_count_bytes)
 
@@ -73,15 +75,27 @@ class Tokenizer:
         while num_merges_to_do > 0:
             # get the most frequent pair of consecutive bytes
             top_pair = self._get_top_pair(pair_freq_dict)
+
             self.merges.append(top_pair)
 
             # merge the most frequent pair in the pre-token counts
             # pre_tokens_count_bytes = self._merge_pair(pre_tokens_count_bytes, top_pair)
+
+            # get the set of pre-tokens that contain the top pair
             pre_tokens_to_change = pair_pre_tokens_dict.get(top_pair)
 
             pair_freq_dict, pre_tokens_count_bytes, pair_pre_tokens_dict = self.update_frequency_dict(
                 pair_freq_dict, pre_tokens_count_bytes, pair_pre_tokens_dict, top_pair, pre_tokens_to_change
             )
+
+            # remove pairs with zero frequency
+            for pair in list(pair_freq_dict.keys()):
+                if pair_freq_dict[pair] == 0:
+                    del pair_freq_dict[pair]
+
+            # for testing purposes, compare the pair frequency dictionary with a freshly computed one
+            #test_pair_freq_dict, _ = self._get_pair_freq(pre_tokens_count_bytes)
+            #assert test_pair_freq_dict == pair_freq_dict, "Mismatch in pair frequency dictionaries for merge {} after {} merges".format(top_pair, len(self.merges))
 
             # update the number of merges left to do
             num_merges_to_do -= 1
@@ -164,32 +178,35 @@ class Tokenizer:
         new_pair_pre_tokens_dict = copy.deepcopy(pair_pre_tokens_dict)
 
         # loop over the pre_tokens that need to be changed
-        for pre_tokens in pre_tokens_to_change:
-            # merge the top pair in the current pre_tokens to get the new pre_tokens
-            new_pre_tokens = self._merge_pair_in_token(top_pair, pre_tokens)
+        for pre_token in pre_tokens_to_change:
+            # merge the top pair in the current pre_tokens to get the new pre_token
+            new_pre_token = self._merge_pair_in_token(top_pair, pre_token)
 
-            # update the frequency count for the new pre_tokens
-            old_count = pre_tokens_count_bytes.get(pre_tokens)
-            if new_pre_tokens in new_pre_tokens_count_bytes:
-                new_pre_tokens_count_bytes[new_pre_tokens] += old_count
+            # update the frequency count for the new pre_token
+            # retrieve the number of occurrences for that pre_token
+            old_count = pre_tokens_count_bytes.get(pre_token)
+            # update the new frequency count for the new pre_token
+            if new_pre_token in new_pre_tokens_count_bytes:
+                new_pre_tokens_count_bytes[new_pre_token] += old_count
             else:
-                new_pre_tokens_count_bytes[new_pre_tokens] = old_count
+                new_pre_tokens_count_bytes[new_pre_token] = old_count
 
-            # get the pair from pre_tokens
-            old_pair_list = self._get_pair_from_token(pre_tokens)
+            # get all the consecutive byte pair from the pre_token
+            old_pair_list = self._get_pair_from_token(pre_token)
+            # update the count of each pair in the old pre_token
             for pair in old_pair_list:
                 new_pair_freq_dict[pair] = new_pair_freq_dict.get(pair, 0) - old_count
                 # remove old pre tokens from the pair_pre_tokens_dict
                 pre_tokens_list = list(new_pair_pre_tokens_dict.get(pair))
-                if pre_tokens_list and pre_tokens in pre_tokens_list:
+                if pre_tokens_list and pre_token in pre_tokens_list:
                     ## add this to debug the problem
-                    pre_tokens_list.remove(pre_tokens)
+                    pre_tokens_list.remove(pre_token)
                         
 
                 new_pair_pre_tokens_dict[pair] = set(pre_tokens_list)
 
-            # update the pair frequency and pair-to-pre_tokens mapping for the new pre_tokens
-            new_pair_list = self._get_pair_from_token(new_pre_tokens)
+            # update the pair frequency and pair-to-pre_tokens mapping for the new pre_token
+            new_pair_list = self._get_pair_from_token(new_pre_token)
             for pair in new_pair_list:
                 new_pair_freq_dict[pair] = new_pair_freq_dict.get(pair, 0) + old_count
                 # add new pre tokens to the pair_pre_tokens_dict
@@ -197,12 +214,12 @@ class Tokenizer:
                     new_pair_pre_tokens_dict[pair] = set()
                 pre_tokens_list = list(new_pair_pre_tokens_dict.get(pair))
                 if pre_tokens_list:
-                    if new_pre_tokens not in pre_tokens_list:
-                        pre_tokens_list.append(new_pre_tokens)
+                    if new_pre_token not in pre_tokens_list:
+                        pre_tokens_list.append(new_pre_token)
                 else:
-                    pre_tokens_list = [new_pre_tokens]
+                    pre_tokens_list = [new_pre_token]
                 new_pair_pre_tokens_dict[pair] = set(pre_tokens_list)
-            del new_pre_tokens_count_bytes[pre_tokens]
+            del new_pre_tokens_count_bytes[pre_token]
 
         return new_pair_freq_dict, new_pre_tokens_count_bytes, new_pair_pre_tokens_dict
 
@@ -279,10 +296,10 @@ if __name__ == "__main__":
 
     tokenizer = Tokenizer(special_tokens=SPECIAL_TOKENS)
 
-    vocab_size = 500
+    vocab_size = 1000
     vocab, merges = tokenizer.train(filename, vocab_size, num_process=4, enable_mp=PARALLELIZE)
 
-    print_results = True
+    print_results = False
 
     if print_results:
         print(f"Vocab: {vocab}")
@@ -301,6 +318,6 @@ if __name__ == "__main__":
 
     with open(output_path.joinpath("merges.txt"), "w") as f:
         for merge in merges:
-            print(merge)
+            #print(merge)
             chars_decoded = [c.decode("utf-8", errors="replace") for c in merge]
             f.write(" ".join(chars_decoded) + "\n")
