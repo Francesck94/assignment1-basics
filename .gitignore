@@ -1,4 +1,7 @@
+# pytest report
+report.txt
 # cprofile output
+cprofile_stats/
 *.out
 # Large data
 data/TinyStoriesV2-GPT4-train.txt

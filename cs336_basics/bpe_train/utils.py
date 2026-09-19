@@ -67,6 +67,18 @@ def count_pre_tokens(pre_tokens):
     return counter
 
 def pre_tokenize_chunk(file_path, start_b, end_b, special_tokens):
+    """
+    Pre-tokenize a chunk of a file.
+
+    Args:
+        file_path (str): Path to the file.
+        start_b (int): Start byte of the chunk.
+        end_b (int): End byte of the chunk.
+        special_tokens (list[str]): List of special tokens to split on.
+
+    Returns:
+        int: Number of pre-tokens in the chunk.
+    """
     with open(file_path, "rb") as file:
         file.seek(start_b)
         chunk = file.read(end_b - start_b).decode("utf-8", errors="ignore")
@@ -102,77 +114,27 @@ def split_on_special_tokens(chunk: str, special_tokens: list[str]) -> list[str]:
 
 ################
 #temporary
-def convert_key_to_tuple_of_bytes(key):
+# def convert_key_to_tuple_of_bytes(key):
+#     """
+#     Convert a key to bytes.
+#     """
+#     return tuple(c.encode('utf-8') for c in key)
+
+def convert_key_to_tuple_of_bytes(txt: str) -> tuple[bytes, ...]:
     """
-    Convert a key to bytes.
+    Convert a string to bytes.
     """
-    return tuple(c.encode('utf-8') for c in key)
-
-def convert_key_to_tuple_of_bytes_v2(key):
-    """
-    Convert a key to bytes.
-    """
-    return tuple(bytes([b]) for b in key.encode('utf-8'))
+    return tuple(bytes([b]) for b in txt.encode('utf-8'))
 
 
-def convert_to_bytes(pre_token):
-    """
-    Transform a pre-token to a tuple of bytes.
-    """
-    pre_token_bytes = tuple(bytes([b]) for b in pre_token.encode('utf-8'))
-    return pre_token_bytes
-
-def merge_pair(freq_dict: dict, top_pair):
-    new_freq_dict = {}
-    for key, value in freq_dict.items():
-        if top_pair in zip(key, key[1:]):
-            i = 0
-            new_key = []
-            #print("found")
-            while i < len(key):
-                if i == len(key) - 1:
-                    new_key.append(key[i])
-                    i += 1
-                    continue
-                elif key[i] == top_pair[0] and key[i+1] == top_pair[1]:
-                    new_key.append(top_pair[0]+top_pair[1])
-                    i += 2
-                else:
-                    new_key.append(key[i])
-                    i += 1
-            new_freq_dict[tuple(new_key)] = value
-        else:
-            new_freq_dict[key] = value
-    return new_freq_dict
+# def convert_to_bytes(pre_token):
+#     """
+#     Transform a pre-token to a tuple of bytes.
+#     """
+#     pre_token_bytes = tuple(bytes([b]) for b in pre_token.encode('utf-8'))
+#     return pre_token_bytes
 
 
-def get_pair_dict_and_freq(freq_dict: dict):
-        """ Calculate the frequency of each pair of consecutive bytes in the input dictionary.
-        Args:
-            freq_dict (dict): A dictionary where keys are tuples of bytes and values are their frequencies.
-
-        Returns:
-            tuple: A tuple containing two dictionaries:
-                - dict: A dictionary with pairs of consecutive bytes as keys and their frequencies as values.
-                - dict: A dictionary with pairs of consecutive bytes as keys and sets of pre-tokens containing the pair as values.
-        """
-        pair_pre_tokens_dict = defaultdict(set)
-        pairs_freq_dict = {}
-        for key, value in freq_dict.items():
-            for first, second in zip(key, key[1:]):
-                pair = (first, second)
-                if pair in pairs_freq_dict:
-                    pairs_freq_dict[pair] += value
-                else:
-                    pairs_freq_dict[pair] = value
-
-                pair_pre_tokens_dict[pair].add(key)
-        return pairs_freq_dict, pair_pre_tokens_dict
 
 
-def get_pair_from_token(token):
-    pair_list = []
-    for i in range(len(token) - 1):
-        pair_list.append((token[i], token[i + 1]))
-    return pair_list
 

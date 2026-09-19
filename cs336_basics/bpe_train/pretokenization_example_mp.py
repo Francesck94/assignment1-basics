@@ -6,8 +6,6 @@ from multiprocessing import Pool
 
 
 
-
-
 def find_chunk_boundaries(
     file: BinaryIO,
     desired_num_chunks: int,
