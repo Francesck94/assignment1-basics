@@ -10,8 +10,8 @@ SPECIAL_TOKENS = ["<|endoftext|>"]  # Add more special tokens as needed
 
 filename = "./data/TinyStoriesV2-GPT4-valid.txt"
 # filename = "./data/test_data.txt"
-filename = '/Users/a415137/personal_projects/cs336/assignment1-basics/tests/fixtures/corpus.en'
-filename = '/Users/a415137/personal_projects/cs336/assignment1-basics/tests/fixtures/tinystories_sample_5M.txt'
+#filename = '/Users/a415137/personal_projects/cs336/assignment1-basics/tests/fixtures/corpus.en'
+#filename = '/Users/a415137/personal_projects/cs336/assignment1-basics/tests/fixtures/tinystories_sample_5M.txt'
 
 
 class Tokenizer:
