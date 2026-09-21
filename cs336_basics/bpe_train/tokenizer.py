@@ -2,6 +2,7 @@ from cs336_basics.bpe_train.utils import find_chunk_boundaries, get_pre_tokens_c
 import copy
 from multiprocessing import Pool
 from collections import defaultdict
+from tqdm import tqdm
 import regex as re
 
 PARALLELIZE = True
@@ -32,7 +33,7 @@ class Tokenizer:
     def decode(self, tokens: list[int]):
         pass
 
-    def train(self, input_path: str, vocab_size: int, num_process: int = 4, enable_mp: bool = True):
+    def train(self, input_path: str, vocab_size: int, num_process: int = 4, enable_mp: bool = True, show_progress: bool = False):
         """
         Function for training the tokenizer on the given text. It will learn merges and build the vocabulary.
         """
@@ -72,6 +73,10 @@ class Tokenizer:
         # pair_pre_tokens_dict: key is a pair of consecutive bytes, value is the set of pre-tokens containing that pair
 
         top_pair = None
+
+        if show_progress:
+            pbar = tqdm(total=num_merges_to_do, desc="Training BPE Tokenizer")
+
         while num_merges_to_do > 0:
             # get the most frequent pair of consecutive bytes e.g (b'a', b'b')
             top_pair = self._get_top_pair(pair_freq_dict)
@@ -101,6 +106,11 @@ class Tokenizer:
             # update the number of merges left to do
             num_merges_to_do -= 1
 
+            if show_progress:
+                pbar.update(1)
+
+        if show_progress:
+            pbar.close()
         # Build the final vocabulary with the learned merges
         self._vocab = self._build_vocab()
         return self._vocab, self.merges
@@ -217,7 +227,7 @@ class Tokenizer:
 
             # get all the consecutive byte pair from the pre_token 
             # e.g. for pre_token b'hello', the consecutive byte pairs would be [(b'h', b'e'), (b'e', b'l'), (b'l', b'l'), (b'l', b'o')]
-            old_pair_list = self._get_pair_from_token(pre_token)
+            old_pair_list = self._get_pair_from_token_v2(pre_token)
 
             # loop over each pair in the old pre_token and decrement its frequency by the old count
             for pair in old_pair_list:
@@ -314,6 +324,15 @@ class Tokenizer:
         return pair_list
 
     @staticmethod
+    def _get_pair_from_token_v2(token):
+        pair_list = []
+        #for i in range(len(token) - 1):
+        #    pair_list.append((token[i], token[i + 1]))
+        for t1, t2 in zip(token, token[1:]):
+            pair_list.append((t1, t2))
+        return pair_list
+
+    @staticmethod
     def _load_corpus(input_path: str):
         with open(input_path, "r") as f:
             corpus = f.read()
@@ -339,15 +358,16 @@ if __name__ == "__main__":
     # print(f"Vocab: {vocab}")
     # print(f"Merges: {merges}")
 
-    output_path = Path(__file__).parent
-    output_path = output_path.joinpath("output_train")
-    output_path.mkdir(parents=True, exist_ok=True)
+    root = Path(__file__).parent
+    OUTPUT_DIR = root.joinpath("output_train")
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     vocab_encoded = {k: v.decode("utf-8", errors="replace") for k, v in vocab.items()}
-    with open(output_path.joinpath("vocab.json"), "w") as f:
-        json.dump(vocab_encoded, f)
+    vocab_inv = {v: k for k, v in vocab_encoded.items()}
+    with open(OUTPUT_DIR.joinpath("vocab.json"), "w") as f:
+        json.dump(vocab_inv , f)
 
-    with open(output_path.joinpath("merges.txt"), "w") as f:
+    with open(OUTPUT_DIR.joinpath("merges.txt"), "w") as f:
         for merge in merges:
             #print(merge)
             chars_decoded = [c.decode("utf-8", errors="replace") for c in merge]

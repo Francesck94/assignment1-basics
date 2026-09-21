@@ -1,3 +1,4 @@
+import json
 import os
 from typing import BinaryIO
 import regex as re
@@ -135,6 +136,19 @@ def convert_key_to_tuple_of_bytes(txt: str) -> tuple[bytes, ...]:
 #     return pre_token_bytes
 
 
+def save_vocab_and_merges(vocab: dict, merges: list[tuple[bytes, bytes]], output_path: str):
+
+    vocab_encoded = {k: v.decode("utf-8", errors="replace") for k, v in vocab.items()}
+
+    # reverse vocab
+    vocab_decoded = {v: k for k, v in vocab_encoded.items()}
+    with open(os.path.join(output_path, "vocab.json"), "w") as f:
+        json.dump(vocab_decoded, f)
+
+    with open(os.path.join(output_path, "merges.txt"), "w") as f:
+        for merge in merges:
+            chars_decoded = [c.decode("utf-8", errors="replace") for c in merge]
+            f.write(" ".join(chars_decoded) + "\n")
 
 
 
