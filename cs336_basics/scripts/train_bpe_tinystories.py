@@ -10,6 +10,18 @@ from cs336_basics.bpe_train.utils import save_vocab_and_merges
 from pathlib import Path
 import os
 import time
+import psutil
+import threading
+import tracemalloc
+
+def poll_memory(output_path, interval=60):
+    process = psutil.Process(os.getpid())
+    while True:
+        memory_usage = process.memory_info().rss / (1024 ** 2)  # in MB
+        #print(f"Memory usage: {memory_usage} MB")
+        with open(os.path.join(output_path, "memory_usage.log"), "a") as f:
+            f.write(f"Memory usage: {memory_usage} MB\n")
+        time.sleep(interval)
 
 if __name__ == "__main__":
     ###### PATH SETUP ##########
@@ -33,16 +45,30 @@ if __name__ == "__main__":
     SPECIAL_TOKENS = ["<|endoftext|>"]
     VOCAB_SIZE = 10000
 
+    
     tokenizer = Tokenizer(special_tokens=SPECIAL_TOKENS)
 
     input_path = "./data/TinyStoriesV2-GPT4-train.txt"
 
+    # Start memory polling in a separate thread
+    #memory_thread = threading.Thread(target=poll_memory, args=(output_path,), daemon=True)
+    #memory_thread.start()
+
+    tracemalloc.start()
     start_time = time.time()
     vocab, merges = tokenizer.train(input_path, vocab_size=VOCAB_SIZE, show_progress=True, num_process=4)
     end_time = time.time()
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    print(f"Current memory usage: {current / (1024 ** 2)} MB; Peak memory usage: {peak / (1024 ** 2)} MB")
 
     elapsed_time = end_time - start_time
     elapsed_time_minutes = elapsed_time / 60
     print(f"Training took {elapsed_time_minutes} minutes ({elapsed_time} seconds).")
 
     save_vocab_and_merges(vocab, merges, output_path)
+
+    # save peak memory usage to a file
+    with open(os.path.join(output_path, "memory_usage.log"), "a") as f:
+        f.write(f"Peak memory usage: {peak / (1024 ** 2)} MB\n")
+
