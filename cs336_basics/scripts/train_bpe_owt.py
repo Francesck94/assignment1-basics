@@ -48,7 +48,7 @@ if __name__ == "__main__":
     
     tokenizer = Tokenizer(special_tokens=SPECIAL_TOKENS)
 
-    input_path = "./data/owt_train.txt"
+    #input_path = "./data/owt_train.txt"
 
     # Start memory polling in a separate thread
     #memory_thread = threading.Thread(target=poll_memory, args=(output_path,), daemon=True)
