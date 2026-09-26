@@ -7,3 +7,4 @@ Serialize the resulting vocabulary and merges to disk for further inspection. Ho
 and memory did training take? What is the longest token in the vocabulary? Does it make sense?
 Resource requirements: ≤ 30 minutes (no GPUs), ≤ 30GB RAM
 
+- The longest token is ' accomplishment'

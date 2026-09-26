@@ -1,2 +1,2 @@
 - bpe tokenizer:
-    - bpre tokenizer training (wip)
+    - bpre tokenizer training (done)

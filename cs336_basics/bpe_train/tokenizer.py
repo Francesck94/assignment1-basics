@@ -27,12 +27,6 @@ class Tokenizer:
         self.special_tokens_bytes = [s.encode("utf-8") for s in self.special_tokens]
         self._vocab = self._build_vocab()
 
-    def encode(self, text: str):
-        pass
-
-    def decode(self, tokens: list[int]):
-        pass
-
     def train(self, input_path: str, vocab_size: int, num_process: int = 4, enable_mp: bool = True, show_progress: bool = False):
         """
         Function for training the tokenizer on the given text. It will learn merges and build the vocabulary.
@@ -227,7 +221,7 @@ class Tokenizer:
 
             # get all the consecutive byte pair from the pre_token 
             # e.g. for pre_token b'hello', the consecutive byte pairs would be [(b'h', b'e'), (b'e', b'l'), (b'l', b'l'), (b'l', b'o')]
-            old_pair_list = self._get_pair_from_token_v2(pre_token)
+            old_pair_list = self._get_pair_from_token(pre_token)
 
             # loop over each pair in the old pre_token and decrement its frequency by the old count
             for pair in old_pair_list:
@@ -316,15 +310,15 @@ class Tokenizer:
     def _get_top_pair(stats):
         return max(stats, key=lambda p: (stats[p], p))
 
-    @staticmethod
-    def _get_pair_from_token(token):
-        pair_list = []
-        for i in range(len(token) - 1):
-            pair_list.append((token[i], token[i + 1]))
-        return pair_list
+    # @staticmethod
+    # def _get_pair_from_token(token):
+    #     pair_list = []
+    #     for i in range(len(token) - 1):
+    #         pair_list.append((token[i], token[i + 1]))
+    #     return pair_list
 
     @staticmethod
-    def _get_pair_from_token_v2(token):
+    def _get_pair_from_token(token):
         pair_list = []
         #for i in range(len(token) - 1):
         #    pair_list.append((token[i], token[i + 1]))

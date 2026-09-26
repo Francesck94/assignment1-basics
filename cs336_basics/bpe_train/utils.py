@@ -101,7 +101,7 @@ def get_pre_tokens_count(file_path, start_b, end_b, special_tokens):
 
 def split_on_special_tokens(chunk: str, special_tokens: list[str]) -> list[str]:
     """
-    Split the chunk on special tokens and return a list of sub-chunks.
+    Split a text chunk on special tokens and return a list of sub-chunks.
     """
     # Create a regex pattern to match any of the special tokens
     special_token_pattern = "|".join(re.escape(token) for token in special_tokens)
@@ -112,6 +112,24 @@ def split_on_special_tokens(chunk: str, special_tokens: list[str]) -> list[str]:
 
     # Filter out empty strings and return the list of sub-chunks
     return [sub_chunk for sub_chunk in sub_chunks if sub_chunk.strip()]
+
+def pre_tokenize_text_in_chunks(text: str, special_tokens: list[str]):
+    """
+    Pre-tokenize a text in chunks.
+
+    Args:
+        text (str): The text chunk to pre-tokenize.
+        special_tokens (list[str]): List of special tokens to split on.
+
+    Returns:
+        list[str]: List of pre-tokenized text chunks.
+    """
+    
+    chunk_without_special_tokens = split_on_special_tokens(text, special_tokens)
+    text_chunks = []
+    for sub_chunk in chunk_without_special_tokens:
+        text_chunks.extend([t.group() for t in re.finditer(TOKENIZE_PATTERN, sub_chunk)])
+    return text_chunks
 
 ################
 #temporary
