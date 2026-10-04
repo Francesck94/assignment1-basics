@@ -1,5 +1,7 @@
 import json
 import os
+import unicodedata
+
 from typing import BinaryIO
 import regex as re
 from multiprocessing import Process
@@ -154,7 +156,7 @@ def convert_key_to_tuple_of_bytes(txt: str) -> tuple[bytes, ...]:
 #     return pre_token_bytes
 
 
-def save_vocab_and_merges(vocab: dict, merges: list[tuple[bytes, bytes]], output_path: str):
+def save_vocab_and_merges(vocab: dict, merges: list[tuple[bytes, bytes]], output_path: str, gpt2_scheme: bool= False):
 
     vocab_encoded = {k: v.decode("utf-8", errors="replace") for k, v in vocab.items()}
 
@@ -166,7 +168,43 @@ def save_vocab_and_merges(vocab: dict, merges: list[tuple[bytes, bytes]], output
     with open(os.path.join(output_path, "merges.txt"), "w") as f:
         for merge in merges:
             chars_decoded = [c.decode("utf-8", errors="replace") for c in merge]
+            if gpt2_scheme:
+                chars_decoded = ['Ġ' if c == ' ' else c for c in chars_decoded]
             f.write(" ".join(chars_decoded) + "\n")
 
 
+def load_vocab_and_merges(input_path: str) -> tuple[dict, list[tuple[bytes, bytes]]]:
+    with open(os.path.join(input_path, "vocab.json"), "r") as f:
+        vocab_decoded = json.load(f)
+    vocab_encoded = {v: k for k, v in vocab_decoded.items()}
 
+    merges = []
+    with open(os.path.join(input_path, "merges.txt"), "r") as f:
+        for line in f:
+            chars = line.strip().split(" ")
+            chars = [' ' if c == 'Ġ' else c for c in chars]
+            merges.append(tuple(bytes([b]) for c in chars for b in c.encode('utf-8')))
+
+    return vocab_encoded, merges
+
+
+
+def replace_control_characters(s: str) -> str:
+    # we don't want to print control characters
+    # which distort the output (e.g. \n or much worse)
+    # https://stackoverflow.com/questions/4324790/removing-control-characters-from-a-string-in-python/19016117#19016117
+    # http://www.unicode.org/reports/tr44/#GC_Values_Table
+    chars = []
+    for ch in s:
+        if unicodedata.category(ch)[0] != "C":
+            chars.append(ch)  # this character is ok
+        else:
+            chars.append(f"\\u{ord(ch):04x}")  # escape
+    return "".join(chars)
+
+
+def render_token(t: bytes) -> str:
+    # pretty print a token, escaping control characters
+    s = t.decode("utf-8", errors="replace")
+    s = replace_control_characters(s)
+    return s

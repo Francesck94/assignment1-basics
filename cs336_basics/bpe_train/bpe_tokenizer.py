@@ -1,5 +1,4 @@
-from cs336_basics.bpe_train.utils import find_chunk_boundaries, get_pre_tokens_count, convert_key_to_tuple_of_bytes
-import copy
+from cs336_basics.bpe_train.utils import find_chunk_boundaries, get_pre_tokens_count, convert_key_to_tuple_of_bytes, render_token
 from multiprocessing import Pool
 from collections import defaultdict
 from tqdm import tqdm
@@ -15,7 +14,7 @@ filename = "./data/TinyStoriesV2-GPT4-valid.txt"
 #filename = '/Users/a415137/personal_projects/cs336/assignment1-basics/tests/fixtures/tinystories_sample_5M.txt'
 
 
-class Tokenizer:
+class BPETokenizer:
     """
     Simple BPE Tokenizer.
     """
@@ -338,9 +337,9 @@ if __name__ == "__main__":
     from pathlib import Path
     import cProfile
 
-    tokenizer = Tokenizer(special_tokens=SPECIAL_TOKENS)
+    tokenizer = BPETokenizer(special_tokens=SPECIAL_TOKENS)
 
-    vocab_size = 300
+    vocab_size = 500
     vocab, merges = tokenizer.train(filename, vocab_size, num_process=4, enable_mp=PARALLELIZE)
 
     print_results = False
@@ -356,13 +355,26 @@ if __name__ == "__main__":
     OUTPUT_DIR = root.joinpath("output_train")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    vocab_encoded = {k: v.decode("utf-8", errors="replace") for k, v in vocab.items()}
-    vocab_inv = {v: k for k, v in vocab_encoded.items()}
+    
+    # Vocab str -> int (for human readability)
+    #vocab_encoded = {k: v.decode("utf-8", errors="replace") for k, v in vocab.items()}
+    def convert(v: bytes):
+        v_int = list(v)
+        v_list = list(map(chr, v_int))
+        v_dec = ''.join(v_list)
+        return v_dec
+    
+    vocab_encoded = {k: convert(v) for k, v in vocab.items()}
+    #vocab_encoded = {k: render_token(v) for k, v in vocab.items()}
+    vocab_encoded_inv = {v: k for k, v in vocab_encoded.items()}
     with open(OUTPUT_DIR.joinpath("vocab.json"), "w") as f:
-        json.dump(vocab_inv , f)
+        json.dump(vocab_encoded_inv , f)
 
+    
     with open(OUTPUT_DIR.joinpath("merges.txt"), "w") as f:
         for merge in merges:
             #print(merge)
             chars_decoded = [c.decode("utf-8", errors="replace") for c in merge]
+            # replace ' ' with 'Ġ'
+            #chars_decoded = ['Ġ' if c == ' ' else c for c in chars_decoded]
             f.write(" ".join(chars_decoded) + "\n")

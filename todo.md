@@ -1,1 +1,2 @@
 - change the name of the Tokenizer class in bpe_train to BPETokenizer
+- save vocab with bytes

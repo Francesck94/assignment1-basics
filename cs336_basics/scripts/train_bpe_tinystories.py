@@ -5,7 +5,7 @@ Serialize the resulting vocabulary and merges to disk for further inspection. Ho
 and memory did training take? What is the longest token in the vocabulary? Does it make sense?
 """
 
-from cs336_basics.bpe_train.tokenizer import Tokenizer
+from cs336_basics.bpe_train.bpe_tokenizer import BPETokenizer
 from cs336_basics.bpe_train.utils import save_vocab_and_merges
 from pathlib import Path
 import os
@@ -46,7 +46,7 @@ if __name__ == "__main__":
     VOCAB_SIZE = 10000
 
     
-    tokenizer = Tokenizer(special_tokens=SPECIAL_TOKENS)
+    tokenizer = BPETokenizer(special_tokens=SPECIAL_TOKENS)
 
     input_path = "./data/TinyStoriesV2-GPT4-train.txt"
 
