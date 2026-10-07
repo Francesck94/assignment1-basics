@@ -1,8 +1,11 @@
-from cs336_basics.bpe_train.utils import convert_key_to_tuple_of_bytes, find_chunk_boundaries, split_on_special_tokens, TOKENIZE_PATTERN
+from cs336_basics.bpe_train.utils import convert_key_to_tuple_of_bytes, find_chunk_boundaries, split_on_special_tokens
 import regex as re
 from typing import Iterable, Iterator
 import logging
 import json
+
+TOKENIZE_PATTERN=r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+
 
 
 logging.basicConfig(level=logging.INFO)
@@ -22,6 +25,31 @@ def _split_on_special_tokens(chunk: str, special_tokens: list[str]) -> list[str]
         # Filter out empty strings and return the list of sub-chunks
         return [sub_chunk for sub_chunk in sub_chunks if sub_chunk.strip()]
 
+def _split_on_special_tokens_v2(text: str, special_tokens: list[str]) -> list[str]:
+    
+    special_token_pattern = "|".join(re.escape(token) for token in special_tokens)
+    split_pattern = re.compile(special_token_pattern)
+
+    # Split the chunk on the special tokens
+    indexes = re.finditer(split_pattern, text)
+    sub_chunks = []
+    last_index = 0
+
+    for match in indexes:
+        #print(match.group())
+        #print(match.start(), match.end())
+
+        sub_chunks.append(text[last_index:match.start()])
+        sub_chunks.append(match.group())
+        last_index = match.end()
+
+    if last_index < len(text):
+        sub_chunks.append(text[last_index:])
+    if len(sub_chunks) == 0:
+        sub_chunks = [text]
+    return [sub_chunk for sub_chunk in sub_chunks if sub_chunk]
+
+
 def _pre_tokenize_text_in_chunks(text: str, special_tokens: list[str]):
     """
     Pre-tokenize a text in chunks.
@@ -34,13 +62,23 @@ def _pre_tokenize_text_in_chunks(text: str, special_tokens: list[str]):
         list[str]: List of pre-tokenized text chunks.
     """
     if len(special_tokens) > 0:
-        chunk_without_special_tokens = _split_on_special_tokens(text, special_tokens)
+        chunk_without_special_tokens = _split_on_special_tokens_v2(text, special_tokens)
     else:
         chunk_without_special_tokens = [text]
 
+    special_token_pattern = "|".join(re.escape(token) for token in special_tokens)
+
+    token_pattern_complete = TOKENIZE_PATTERN+f"|{special_token_pattern}"
+    token_pattern_complete = re.compile(token_pattern_complete)
+    print(token_pattern_complete)
     text_chunks = []
     for sub_chunk in chunk_without_special_tokens:
-        text_chunks.extend([t.group() for t in re.finditer(TOKENIZE_PATTERN, sub_chunk)])
+        if sub_chunk in special_tokens:
+            text_chunks.append(sub_chunk)
+        else:
+            text_chunks.extend(
+                [t.group() for t in re.finditer(token_pattern_complete, sub_chunk)]
+                )
         logger.debug("text_chunks after pre-tokenization: %s", text_chunks)
     return text_chunks
 
@@ -65,6 +103,9 @@ class Tokenizer:
         self.vocab = vocab
         self.merges = merges
         self.special_tokens = special_tokens if special_tokens is not None else []
+
+        if self.special_tokens:
+            self.special_tokens = sorted(self.special_tokens, key=len, reverse=True)
 
         self.merges_dict = {m: i for i, m in enumerate(merges)}
 
@@ -101,12 +142,23 @@ class Tokenizer:
         logger.debug("text: %s", text)
         pre_tokens = _pre_tokenize_text_in_chunks(text, self.special_tokens)
         logger.debug("pre-tokens: %s", pre_tokens)
-        pre_tokens_bytes = [convert_key_to_tuple_of_bytes(pre_tok) for pre_tok in pre_tokens]
 
+        if not self.special_tokens:
+            pre_tokens_bytes = [convert_key_to_tuple_of_bytes(pre_tok) for pre_tok in pre_tokens]
+        else:
+            pre_tokens_bytes = [
+                (convert_key_to_tuple_of_bytes(pre_tok) if pre_tok not in self.special_tokens else pre_tok.encode('utf-8')) for pre_tok in pre_tokens]
+
+        special_tokens_bytes = [tok.encode('utf-8') for tok in self.special_tokens]
         tokens_encoded = []
         for pre_tok_bytes in pre_tokens_bytes:
 
             logger.debug("pre-tokenized bytes: %s", pre_tok_bytes)
+
+            if pre_tok_bytes in special_tokens_bytes:
+                tokens_encoded.extend([self.inv_vocab[pre_tok_bytes]])
+                continue
+            
             tokens_pair = self._get_pair_from_token(pre_tok_bytes)
 
             # if the token exists and has exactly one pair, proceed with merging
@@ -118,7 +170,7 @@ class Tokenizer:
                     #print("merging", pair_to_merge, "in", pre_tok_bytes)
                     pre_tok_bytes = self._merge_pair_in_token(pair_to_merge, pre_tok_bytes)
                     tokens_pair = self._get_pair_from_token(pre_tok_bytes)
-                    # TODO: check if the or len(tokens_pair[0]) < 2 can be removed
+                    # TODO: check if the condition: "len(tokens_pair[0]) < 2" can be removed
                     if not tokens_pair or len(tokens_pair[0]) < 2:
                         break
                     pair_to_merge = min(tokens_pair, key=lambda x: self.merges_dict.get(x, float('inf')))
@@ -135,11 +187,10 @@ class Tokenizer:
         return v_dec
     
     def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
-        pass
+        for text in iterable:
+            yield from self.encode(text)
 
-    #def decode(self, token_ids: list[int]) -> str:
-     #   original_text = "".join([self.decode_id(token_id, self.vocab) for token_id in token_ids])
-     #   return original_text
+   
 
     def decode(self, ids):
         # Tokenizer can decode a list of integers into a string
@@ -197,7 +248,6 @@ class Tokenizer:
 
     
 
-
 if __name__ == "__main__":
     from pathlib import Path
     import tiktoken
@@ -214,7 +264,6 @@ if __name__ == "__main__":
     #vocab_path = "/Users/a415137/personal_projects/cs336/assignment1-basics/cs336_basics/bpe_train/notebook_vocab/vocab_decoded.json"
     #merges_path = cwd / "merges.txt"
     special_tokens = ["<|endoftext|>"]
-    special_tokens = []
     tokenizer = Tokenizer.from_files(vocab_filepath=vocab_path, merges_filepath=merges_path, special_tokens=special_tokens)
 
     test_string = "Hello, how are you?"
@@ -223,11 +272,18 @@ if __name__ == "__main__":
     decoded = tokenizer.decode(encoded)
     print("Decoded:", decoded)
 
+    tokenized_string = [tokenizer.decode([x]) for x in encoded]
+    tokenized_string.count("<|endoftext|>")
+    print("Count of <|endoftext|> in tokenized string:", tokenized_string.count("<|endoftext|>"))
+    
+
 
     # Compare the encoding of the test string with the reference tokenizer
-    reference_encoded = reference_tokenizer.encode(test_string)
+    reference_encoded = reference_tokenizer.encode(test_string, allowed_special={"<|endoftext|>"})
     print("Reference Encoded:", reference_encoded)
 
     # Compare the decoded output with the original test string
     reference_decoded = reference_tokenizer.decode(reference_encoded)
     print("Reference Decoded:", reference_decoded)
+
+    print("Count of <|endoftext|> in reference encoded string:", reference_decoded.count("<|endoftext|>"))
