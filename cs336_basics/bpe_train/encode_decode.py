@@ -1,32 +1,20 @@
-from cs336_basics.bpe_train.utils import convert_key_to_tuple_of_bytes, find_chunk_boundaries, split_on_special_tokens
+from cs336_basics.bpe_train.utils import convert_key_to_tuple_of_bytes
 import regex as re
 from typing import Iterable, Iterator
 import logging
 import json
 
-TOKENIZE_PATTERN=r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-
+TOKENIZE_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def _split_on_special_tokens(chunk: str, special_tokens: list[str]) -> list[str]:
-        """
-        Split a text chunk on special tokens and return a list of sub-chunks.
-        """
-        # Create a regex pattern to match any of the special tokens
-        special_token_pattern = "|".join(re.escape(token) for token in special_tokens)
-        split_pattern = re.compile(special_token_pattern)
 
-        # Split the chunk on the special tokens
-        sub_chunks = split_pattern.split(chunk)
 
-        # Filter out empty strings and return the list of sub-chunks
-        return [sub_chunk for sub_chunk in sub_chunks if sub_chunk.strip()]
 
-def _split_on_special_tokens_v2(text: str, special_tokens: list[str]) -> list[str]:
-    
+def _split_on_special_tokens(text: str, special_tokens: list[str]) -> list[str]:
+
     special_token_pattern = "|".join(re.escape(token) for token in special_tokens)
     split_pattern = re.compile(special_token_pattern)
 
@@ -36,10 +24,10 @@ def _split_on_special_tokens_v2(text: str, special_tokens: list[str]) -> list[st
     last_index = 0
 
     for match in indexes:
-        #print(match.group())
-        #print(match.start(), match.end())
+        # print(match.group())
+        # print(match.start(), match.end())
 
-        sub_chunks.append(text[last_index:match.start()])
+        sub_chunks.append(text[last_index : match.start()])
         sub_chunks.append(match.group())
         last_index = match.end()
 
@@ -62,44 +50,46 @@ def _pre_tokenize_text_in_chunks(text: str, special_tokens: list[str]):
         list[str]: List of pre-tokenized text chunks.
     """
     if len(special_tokens) > 0:
-        chunk_without_special_tokens = _split_on_special_tokens_v2(text, special_tokens)
+        chunk_without_special_tokens = _split_on_special_tokens(text, special_tokens)
     else:
         chunk_without_special_tokens = [text]
 
     special_token_pattern = "|".join(re.escape(token) for token in special_tokens)
 
-    token_pattern_complete = TOKENIZE_PATTERN+f"|{special_token_pattern}"
+    token_pattern_complete = TOKENIZE_PATTERN + f"|{special_token_pattern}"
     token_pattern_complete = re.compile(token_pattern_complete)
-    print(token_pattern_complete)
+    # print(token_pattern_complete)
     text_chunks = []
     for sub_chunk in chunk_without_special_tokens:
         if sub_chunk in special_tokens:
             text_chunks.append(sub_chunk)
         else:
-            text_chunks.extend(
-                [t.group() for t in re.finditer(token_pattern_complete, sub_chunk)]
-                )
+            text_chunks.extend([t.group() for t in re.finditer(token_pattern_complete, sub_chunk)])
         logger.debug("text_chunks after pre-tokenization: %s", text_chunks)
     return text_chunks
 
-def convert_merge_result(merge_str: str):
-        """
-        Convert a merge string result into a tuple of bytes.
-        """
-        res = merge_str.rstrip('\n')
-        res = res.split(' ')
-        if len(res) > 2:
-            if res[0]:
-                res = [res[0], ' ']
-            elif res[-1]:
-                res = [' ', res[-1]]
-            else:
-                pass
 
-        return tuple(bytes(c.encode('utf-8')) for c in res)
+def convert_merge_result(merge_str: str):
+    """
+    Convert a merge string result into a tuple of bytes.
+    """
+    res = merge_str.rstrip("\n")
+    res = res.split(" ")
+    if len(res) > 2:
+        if res[0]:
+            res = [res[0], " "]
+        elif res[-1]:
+            res = [" ", res[-1]]
+        else:
+            pass
+
+    return tuple(bytes(c.encode("utf-8")) for c in res)
+
 
 class Tokenizer:
-    def __init__(self, vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], special_tokens: list[str] | None = None):
+    def __init__(
+        self, vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], special_tokens: list[str] | None = None
+    ):
         self.vocab = vocab
         self.merges = merges
         self.special_tokens = special_tokens if special_tokens is not None else []
@@ -114,20 +104,19 @@ class Tokenizer:
     @classmethod
     def from_files(cls, vocab_filepath: str, merges_filepath: str, special_tokens: list[str] | None = None):
         # Load vocab
-        with open(vocab_filepath, 'r') as f:
+        with open(vocab_filepath, "r") as f:
             vocab = json.load(f)
 
-        #vocab = {int(v): k.encode('utf-8') for k, v in vocab.items()}
+        # vocab = {int(v): k.encode('utf-8') for k, v in vocab.items()}
         vocab = {int(v): Tokenizer.map_to_bytes(k) for k, v in vocab.items()}
 
         # Load merges
-        with open(merges_filepath, 'r') as f:
+        with open(merges_filepath, "r") as f:
             merges = f.readlines()
 
         merges = list(map(convert_merge_result, merges))
 
         return cls(vocab, merges, special_tokens)
-
 
     def encode(self, text: str) -> list[int]:
         """
@@ -147,50 +136,56 @@ class Tokenizer:
             pre_tokens_bytes = [convert_key_to_tuple_of_bytes(pre_tok) for pre_tok in pre_tokens]
         else:
             pre_tokens_bytes = [
-                (convert_key_to_tuple_of_bytes(pre_tok) if pre_tok not in self.special_tokens else pre_tok.encode('utf-8')) for pre_tok in pre_tokens]
+                (
+                    convert_key_to_tuple_of_bytes(pre_tok)
+                    if pre_tok not in self.special_tokens
+                    else pre_tok.encode("utf-8")
+                )
+                for pre_tok in pre_tokens
+            ]
 
-        special_tokens_bytes = [tok.encode('utf-8') for tok in self.special_tokens]
+        special_tokens_bytes = [tok.encode("utf-8") for tok in self.special_tokens]
         tokens_encoded = []
         for pre_tok_bytes in pre_tokens_bytes:
-
             logger.debug("pre-tokenized bytes: %s", pre_tok_bytes)
 
             if pre_tok_bytes in special_tokens_bytes:
                 tokens_encoded.extend([self.inv_vocab[pre_tok_bytes]])
                 continue
-            
+
             tokens_pair = self._get_pair_from_token(pre_tok_bytes)
 
             # if the token exists and has exactly one pair, proceed with merging
             if tokens_pair:
                 # get the first pair to merge based on the merges dictionary
-                pair_to_merge = min(tokens_pair, key=lambda x: self.merges_dict.get(x, float('inf')))
-                
+                pair_to_merge = min(tokens_pair, key=lambda x: self.merges_dict.get(x, float("inf")))
+
                 while self.merges_dict.get(pair_to_merge) is not None:
-                    #print("merging", pair_to_merge, "in", pre_tok_bytes)
+                    # print("merging", pair_to_merge, "in", pre_tok_bytes)
                     pre_tok_bytes = self._merge_pair_in_token(pair_to_merge, pre_tok_bytes)
                     tokens_pair = self._get_pair_from_token(pre_tok_bytes)
                     # TODO: check if the condition: "len(tokens_pair[0]) < 2" can be removed
-                    if not tokens_pair or len(tokens_pair[0]) < 2:
+
+                    # if there are no more pairs to merge, break the loop
+                    if not tokens_pair:
                         break
-                    pair_to_merge = min(tokens_pair, key=lambda x: self.merges_dict.get(x, float('inf')))
+
+                    # if there is only one pair left and its length is less than 2, break the loop
+                    if len(tokens_pair) == 1:
+                        if len(tokens_pair[0]) < 2:
+                            break
+
+                    # Other cases: select the next pair to merge based on the merges dictionary
+                    pair_to_merge = min(tokens_pair, key=lambda x: self.merges_dict.get(x, float("inf")))
 
             tokens_ids = [self.inv_vocab[token] for token in pre_tok_bytes]
             tokens_encoded.extend(tokens_ids)
+
         return tokens_encoded
 
-    @staticmethod
-    def convert(v: bytes):
-        v_int = list(v)
-        v_list = list(map(chr, v_int))
-        v_dec = ''.join(v_list)
-        return v_dec
-    
     def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
         for text in iterable:
             yield from self.encode(text)
-
-   
 
     def decode(self, ids):
         # Tokenizer can decode a list of integers into a string
@@ -199,10 +194,12 @@ class Tokenizer:
         original_str = original_str.decode("utf-8", errors="replace")
         return original_str
 
-    # def decode_id(self, token_id, vocab):
-    #     byte_seq = vocab[token_id]
-    #     txt = byte_seq.decode('utf-8', errors='replace')
-    #     return txt
+    @staticmethod
+    def convert_bytes_to_str(v: bytes) -> str:
+        v_int = list(v)
+        v_list = list(map(chr, v_int))
+        v_dec = "".join(v_list)
+        return v_dec
 
     @staticmethod
     def _merge_pair_in_token(pair, token):
@@ -217,11 +214,11 @@ class Tokenizer:
                 merged_token.append(token[i])
                 i += 1
         return tuple(merged_token)
-    
+
     @staticmethod
     def _get_pair_from_token(token: tuple) -> list[tuple]:
         pair_list = []
-        #for i in range(len(token) - 1):
+        # for i in range(len(token) - 1):
         #    pair_list.append((token[i], token[i + 1]))
         for t1, t2 in zip(token, token[1:]):
             pair_list.append((t1, t2))
@@ -246,7 +243,6 @@ class Tokenizer:
         temp = list(map(ord, vocab_char))
         return bytes(temp)
 
-    
 
 if __name__ == "__main__":
     from pathlib import Path
@@ -254,17 +250,14 @@ if __name__ == "__main__":
 
     reference_tokenizer = tiktoken.get_encoding("gpt2")
 
-
     cwd = Path(__file__).parent
-    #tokenize_path = cwd / "output_train"
     vocab_path = cwd / "output_train/vocab.json"
     merges_path = cwd / "output_train/merges.txt"
-    #tokenize_path = cwd
-    #vocab_path = cwd / "vocab.json"
-    #vocab_path = "/Users/a415137/personal_projects/cs336/assignment1-basics/cs336_basics/bpe_train/notebook_vocab/vocab_decoded.json"
-    #merges_path = cwd / "merges.txt"
     special_tokens = ["<|endoftext|>"]
-    tokenizer = Tokenizer.from_files(vocab_filepath=vocab_path, merges_filepath=merges_path, special_tokens=special_tokens)
+
+    tokenizer = Tokenizer.from_files(
+        vocab_filepath=vocab_path, merges_filepath=merges_path, special_tokens=special_tokens
+    )
 
     test_string = "Hello, how are you?"
     encoded = tokenizer.encode(test_string)
@@ -275,15 +268,13 @@ if __name__ == "__main__":
     tokenized_string = [tokenizer.decode([x]) for x in encoded]
     tokenized_string.count("<|endoftext|>")
     print("Count of <|endoftext|> in tokenized string:", tokenized_string.count("<|endoftext|>"))
-    
-
 
     # Compare the encoding of the test string with the reference tokenizer
-    reference_encoded = reference_tokenizer.encode(test_string, allowed_special={"<|endoftext|>"})
-    print("Reference Encoded:", reference_encoded)
+    # reference_encoded = reference_tokenizer.encode(test_string, allowed_special={"<|endoftext|>"})
+    # print("Reference Encoded:", reference_encoded)
 
-    # Compare the decoded output with the original test string
-    reference_decoded = reference_tokenizer.decode(reference_encoded)
-    print("Reference Decoded:", reference_decoded)
+    # # Compare the decoded output with the original test string
+    # reference_decoded = reference_tokenizer.decode(reference_encoded)
+    # print("Reference Decoded:", reference_decoded)
 
-    print("Count of <|endoftext|> in reference encoded string:", reference_decoded.count("<|endoftext|>"))
+    # print("Count of <|endoftext|> in reference encoded string:", reference_decoded.count("<|endoftext|>"))

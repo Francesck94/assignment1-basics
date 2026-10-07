@@ -1,4 +1,8 @@
-from cs336_basics.bpe_train.utils import find_chunk_boundaries, get_pre_tokens_count, convert_key_to_tuple_of_bytes, render_token
+from cs336_basics.bpe_train.utils import (
+    find_chunk_boundaries,
+    get_pre_tokens_count,
+    convert_key_to_tuple_of_bytes,
+)
 from multiprocessing import Pool
 from collections import defaultdict
 from tqdm import tqdm
@@ -10,8 +14,8 @@ SPECIAL_TOKENS = ["<|endoftext|>"]  # Add more special tokens as needed
 
 filename = "./data/TinyStoriesV2-GPT4-valid.txt"
 # filename = "./data/test_data.txt"
-#filename = '/Users/a415137/personal_projects/cs336/assignment1-basics/tests/fixtures/corpus.en'
-#filename = '/Users/a415137/personal_projects/cs336/assignment1-basics/tests/fixtures/tinystories_sample_5M.txt'
+# filename = '/Users/a415137/personal_projects/cs336/assignment1-basics/tests/fixtures/corpus.en'
+# filename = '/Users/a415137/personal_projects/cs336/assignment1-basics/tests/fixtures/tinystories_sample_5M.txt'
 
 
 class BPETokenizer:
@@ -26,7 +30,14 @@ class BPETokenizer:
         self.special_tokens_bytes = [s.encode("utf-8") for s in self.special_tokens]
         self._vocab = self._build_vocab()
 
-    def train(self, input_path: str, vocab_size: int, num_process: int = 4, enable_mp: bool = True, show_progress: bool = False):
+    def train(
+        self,
+        input_path: str,
+        vocab_size: int,
+        num_process: int = 4,
+        enable_mp: bool = True,
+        show_progress: bool = False,
+    ):
         """
         Function for training the tokenizer on the given text. It will learn merges and build the vocabulary.
         """
@@ -35,7 +46,7 @@ class BPETokenizer:
 
             # only for testing purposes, limit to the first 4 chunks
             # TODO: remove this line after testing
-            #boundaries = boundaries[:2]
+            # boundaries = boundaries[:2]
 
         if enable_mp:
             pairs = list(zip(boundaries[:-1], boundaries[1:]))
@@ -77,7 +88,6 @@ class BPETokenizer:
             # append the most frequent pair to the list of merges
             self.merges.append(top_pair)
 
-
             # get the set of pre-tokens that contain the top pair
             # these pre-tokens will be updated to reflect the merge
             pre_tokens_to_change = pair_pre_tokens_dict.get(top_pair)
@@ -93,8 +103,8 @@ class BPETokenizer:
                     del pair_freq_dict[pair]
 
             # for testing purposes, compare the pair frequency dictionary with a freshly computed one
-            #test_pair_freq_dict, _ = self._get_pair_freq(pre_tokens_count_bytes)
-            #assert test_pair_freq_dict == pair_freq_dict, "Mismatch in pair frequency dictionaries for merge {} after {} merges".format(top_pair, len(self.merges))
+            # test_pair_freq_dict, _ = self._get_pair_freq(pre_tokens_count_bytes)
+            # assert test_pair_freq_dict == pair_freq_dict, "Mismatch in pair frequency dictionaries for merge {} after {} merges".format(top_pair, len(self.merges))
 
             # update the number of merges left to do
             num_merges_to_do -= 1
@@ -126,7 +136,7 @@ class BPETokenizer:
 
         return vocab
 
-    #TODO: Consider removing self from other static methods if not needed
+    # TODO: Consider removing self from other static methods if not needed
     @staticmethod
     def _get_pair_freq(freq_dict: dict):
         """Calculate the frequency of each pair of consecutive bytes in the input dictionary.
@@ -176,7 +186,8 @@ class BPETokenizer:
         return pairs_freq_dict, pair_pre_tokens_dict
 
     def update_frequency_dict(
-        self, pair_freq_dict, pre_tokens_count_bytes, pair_pre_tokens_dict, top_pair, pre_tokens_to_change):
+        self, pair_freq_dict, pre_tokens_count_bytes, pair_pre_tokens_dict, top_pair, pre_tokens_to_change
+    ):
         """
         Update the frequency dictionary and pre-token counts based on the merge of the top pair.
 
@@ -195,14 +206,14 @@ class BPETokenizer:
         """
 
         # Create copies of the input dictionaries
-        #new_pre_tokens_count_bytes = copy.deepcopy(pre_tokens_count_bytes)
+        # new_pre_tokens_count_bytes = copy.deepcopy(pre_tokens_count_bytes)
         new_pre_tokens_count_bytes = pre_tokens_count_bytes.copy()
 
         new_pair_freq_dict = pair_freq_dict.copy()
-        #new_pair_freq_dict = copy.deepcopy(pair_freq_dict)
+        # new_pair_freq_dict = copy.deepcopy(pair_freq_dict)
 
         new_pair_pre_tokens_dict = pair_pre_tokens_dict.copy()
-        #new_pair_pre_tokens_dict = copy.deepcopy(pair_pre_tokens_dict)
+        # new_pair_pre_tokens_dict = copy.deepcopy(pair_pre_tokens_dict)
 
         # loop over the pre_tokens that need to be changed
         for pre_token in pre_tokens_to_change:
@@ -218,7 +229,7 @@ class BPETokenizer:
             else:
                 new_pre_tokens_count_bytes[new_pre_token] = old_count
 
-            # get all the consecutive byte pair from the pre_token 
+            # get all the consecutive byte pair from the pre_token
             # e.g. for pre_token b'hello', the consecutive byte pairs would be [(b'h', b'e'), (b'e', b'l'), (b'l', b'l'), (b'l', b'o')]
             old_pair_list = self._get_pair_from_token(pre_token)
 
@@ -233,7 +244,7 @@ class BPETokenizer:
                 if pre_tokens_list and pre_token in pre_tokens_list:
                     ## update the list of pre_tokens associated with this pair
                     pre_tokens_list.remove(pre_token)
-                        
+
                 # now the pair-to-pre_tokens mapping for this pair has been updated
                 new_pair_pre_tokens_dict[pair] = set(pre_tokens_list)
 
@@ -269,7 +280,7 @@ class BPETokenizer:
                 i += 1
         return tuple(merged_token)
 
-    #TODO: To remove, since it duplicates the functionality of _merge_pair_in_token
+    # TODO: To remove, since it duplicates the functionality of _merge_pair_in_token
     @staticmethod
     def _merge_pair(freq_dict: dict, top_pair):
         """
@@ -304,7 +315,6 @@ class BPETokenizer:
                 new_freq_dict[key] = value
         return new_freq_dict
 
-
     @staticmethod
     def _get_top_pair(stats):
         return max(stats, key=lambda p: (stats[p], p))
@@ -319,7 +329,7 @@ class BPETokenizer:
     @staticmethod
     def _get_pair_from_token(token):
         pair_list = []
-        #for i in range(len(token) - 1):
+        # for i in range(len(token) - 1):
         #    pair_list.append((token[i], token[i + 1]))
         for t1, t2 in zip(token, token[1:]):
             pair_list.append((t1, t2))
@@ -355,26 +365,24 @@ if __name__ == "__main__":
     OUTPUT_DIR = root.joinpath("output_train")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    
     # Vocab str -> int (for human readability)
-    #vocab_encoded = {k: v.decode("utf-8", errors="replace") for k, v in vocab.items()}
+    # vocab_encoded = {k: v.decode("utf-8", errors="replace") for k, v in vocab.items()}
     def convert(v: bytes):
         v_int = list(v)
         v_list = list(map(chr, v_int))
-        v_dec = ''.join(v_list)
+        v_dec = "".join(v_list)
         return v_dec
-    
+
     vocab_encoded = {k: convert(v) for k, v in vocab.items()}
-    #vocab_encoded = {k: render_token(v) for k, v in vocab.items()}
+    # vocab_encoded = {k: render_token(v) for k, v in vocab.items()}
     vocab_encoded_inv = {v: k for k, v in vocab_encoded.items()}
     with open(OUTPUT_DIR.joinpath("vocab.json"), "w") as f:
-        json.dump(vocab_encoded_inv , f)
+        json.dump(vocab_encoded_inv, f)
 
-    
     with open(OUTPUT_DIR.joinpath("merges.txt"), "w") as f:
         for merge in merges:
-            #print(merge)
+            # print(merge)
             chars_decoded = [c.decode("utf-8", errors="replace") for c in merge]
             # replace ' ' with 'Ġ'
-            #chars_decoded = ['Ġ' if c == ' ' else c for c in chars_decoded]
+            # chars_decoded = ['Ġ' if c == ' ' else c for c in chars_decoded]
             f.write(" ".join(chars_decoded) + "\n")

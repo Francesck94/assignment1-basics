@@ -5,7 +5,6 @@ from multiprocessing import Process
 from multiprocessing import Pool
 
 
-
 def find_chunk_boundaries(
     file: BinaryIO,
     desired_num_chunks: int,
@@ -53,8 +52,9 @@ def find_chunk_boundaries(
     return sorted(set(chunk_boundaries))
 
 
-pattern=r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+pattern = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 pattern = re.compile(pattern)
+
 
 def pre_tokenize_chunk(file_path, start_b, end_b):
     with open(file_path, "rb") as file:
@@ -63,6 +63,7 @@ def pre_tokenize_chunk(file_path, start_b, end_b):
         text_chunks = re.finditer(pattern, chunk)
         return len(list(text_chunks))
 
+
 ## Usage
 # with open("./data/TinyStoriesV2-GPT4-train.txt", "rb") as f:
 #     num_processes = 4
@@ -70,7 +71,7 @@ def pre_tokenize_chunk(file_path, start_b, end_b):
 
 #     # The following is a serial implementation, but you can parallelize this
 #     # by sending each start/end pair to a set of processes.
-    
+
 #     for start, end in zip(boundaries[:-1], boundaries[1:]):
 #         f.seek(start)
 #         chunk = f.read(end - start).decode("utf-8", errors="ignore")
@@ -81,12 +82,10 @@ if __name__ == "__main__":
     with open("./data/TinyStoriesV2-GPT4-train.txt", "rb") as f:
         num_processes = 4
         boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
-        
+
         pairs = list(zip(boundaries[:-1], boundaries[1:]))
         args = [("./data/TinyStoriesV2-GPT4-train.txt", start, end) for start, end in pairs]
 
     with Pool(processes=num_processes) as pool:
         results = pool.starmap(pre_tokenize_chunk, args)
     print("num of pre-tokenized chunks:", results)
-
-     
