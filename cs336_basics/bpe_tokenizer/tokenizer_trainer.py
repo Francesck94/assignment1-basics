@@ -1,4 +1,4 @@
-from cs336_basics.bpe_train.utils import (
+from cs336_basics.bpe_tokenizer.utils import (
     find_chunk_boundaries,
     get_pre_tokens_count,
     convert_key_to_tuple_of_bytes,
@@ -8,17 +8,9 @@ from collections import defaultdict
 from tqdm import tqdm
 import regex as re
 
-PARALLELIZE = True
-
-SPECIAL_TOKENS = ["<|endoftext|>"]  # Add more special tokens as needed
-
-filename = "./data/TinyStoriesV2-GPT4-valid.txt"
-# filename = "./data/test_data.txt"
-# filename = '/Users/a415137/personal_projects/cs336/assignment1-basics/tests/fixtures/corpus.en'
-# filename = '/Users/a415137/personal_projects/cs336/assignment1-basics/tests/fixtures/tinystories_sample_5M.txt'
 
 
-class BPETokenizer:
+class TokenizerTrainer:
     """
     Simple BPE Tokenizer.
     """
@@ -347,7 +339,16 @@ if __name__ == "__main__":
     from pathlib import Path
     import cProfile
 
-    tokenizer = BPETokenizer(special_tokens=SPECIAL_TOKENS)
+
+    PARALLELIZE = True
+
+    SPECIAL_TOKENS = ["<|endoftext|>"]  # Add more special tokens as needed
+
+    filename = "./data/TinyStoriesV2-GPT4-valid.txt"
+    # filename = "./data/test_data.txt"
+    # filename = '/Users/a415137/personal_projects/cs336/assignment1-basics/tests/fixtures/corpus.en'
+    # filename = '/Users/a415137/personal_projects/cs336/assignment1-basics/tests/fixtures/tinystories_sample_5M.txt'
+    tokenizer = TokenizerTrainer(special_tokens=SPECIAL_TOKENS)
 
     vocab_size = 500
     vocab, merges = tokenizer.train(filename, vocab_size, num_process=4, enable_mp=PARALLELIZE)

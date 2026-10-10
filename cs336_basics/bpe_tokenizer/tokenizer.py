@@ -1,10 +1,11 @@
-from cs336_basics.bpe_train.utils import convert_key_to_tuple_of_bytes
+from cs336_basics.bpe_tokenizer.utils import convert_key_to_tuple_of_bytes
 import regex as re
 from typing import Iterable, Iterator
 import logging
 import json
+from cs336_basics.bpe_tokenizer.pretokenization import pre_tokenize_text_in_chunks, find_chunk_boundaries, TOKENIZE_PATTERN
 
-TOKENIZE_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+#TOKENIZE_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
 
 logging.basicConfig(level=logging.INFO)
@@ -13,60 +14,60 @@ logger = logging.getLogger(__name__)
 
 
 
-def _split_on_special_tokens(text: str, special_tokens: list[str]) -> list[str]:
+# def _split_on_special_tokens(text: str, special_tokens: list[str]) -> list[str]:
 
-    special_token_pattern = "|".join(re.escape(token) for token in special_tokens)
-    split_pattern = re.compile(special_token_pattern)
+#     special_token_pattern = "|".join(re.escape(token) for token in special_tokens)
+#     split_pattern = re.compile(special_token_pattern)
 
-    # Split the chunk on the special tokens
-    indexes = re.finditer(split_pattern, text)
-    sub_chunks = []
-    last_index = 0
+#     # Split the chunk on the special tokens
+#     indexes = re.finditer(split_pattern, text)
+#     sub_chunks = []
+#     last_index = 0
 
-    for match in indexes:
-        # print(match.group())
-        # print(match.start(), match.end())
+#     for match in indexes:
+#         # print(match.group())
+#         # print(match.start(), match.end())
 
-        sub_chunks.append(text[last_index : match.start()])
-        sub_chunks.append(match.group())
-        last_index = match.end()
+#         sub_chunks.append(text[last_index : match.start()])
+#         sub_chunks.append(match.group())
+#         last_index = match.end()
 
-    if last_index < len(text):
-        sub_chunks.append(text[last_index:])
-    if len(sub_chunks) == 0:
-        sub_chunks = [text]
-    return [sub_chunk for sub_chunk in sub_chunks if sub_chunk]
+#     if last_index < len(text):
+#         sub_chunks.append(text[last_index:])
+#     if len(sub_chunks) == 0:
+#         sub_chunks = [text]
+#     return [sub_chunk for sub_chunk in sub_chunks if sub_chunk]
 
 
-def _pre_tokenize_text_in_chunks(text: str, special_tokens: list[str]):
-    """
-    Pre-tokenize a text in chunks.
+# def _pre_tokenize_text_in_chunks(text: str, special_tokens: list[str]):
+#     """
+#     Pre-tokenize a text in chunks.
 
-    Args:
-        text (str): The text chunk to pre-tokenize.
-        special_tokens (list[str]): List of special tokens to split on.
+#     Args:
+#         text (str): The text chunk to pre-tokenize.
+#         special_tokens (list[str]): List of special tokens to split on.
 
-    Returns:
-        list[str]: List of pre-tokenized text chunks.
-    """
-    if len(special_tokens) > 0:
-        chunk_without_special_tokens = _split_on_special_tokens(text, special_tokens)
-    else:
-        chunk_without_special_tokens = [text]
+#     Returns:
+#         list[str]: List of pre-tokenized text chunks.
+#     """
+#     if len(special_tokens) > 0:
+#         chunk_without_special_tokens = _split_on_special_tokens(text, special_tokens)
+#     else:
+#         chunk_without_special_tokens = [text]
 
-    special_token_pattern = "|".join(re.escape(token) for token in special_tokens)
+#     special_token_pattern = "|".join(re.escape(token) for token in special_tokens)
 
-    token_pattern_complete = TOKENIZE_PATTERN + f"|{special_token_pattern}"
-    token_pattern_complete = re.compile(token_pattern_complete)
-    # print(token_pattern_complete)
-    text_chunks = []
-    for sub_chunk in chunk_without_special_tokens:
-        if sub_chunk in special_tokens:
-            text_chunks.append(sub_chunk)
-        else:
-            text_chunks.extend([t.group() for t in re.finditer(token_pattern_complete, sub_chunk)])
-        logger.debug("text_chunks after pre-tokenization: %s", text_chunks)
-    return text_chunks
+#     token_pattern_complete = TOKENIZE_PATTERN + f"|{special_token_pattern}"
+#     token_pattern_complete = re.compile(token_pattern_complete)
+#     # print(token_pattern_complete)
+#     text_chunks = []
+#     for sub_chunk in chunk_without_special_tokens:
+#         if sub_chunk in special_tokens:
+#             text_chunks.append(sub_chunk)
+#         else:
+#             text_chunks.extend([t.group() for t in re.finditer(token_pattern_complete, sub_chunk)])
+#         logger.debug("text_chunks after pre-tokenization: %s", text_chunks)
+#     return text_chunks
 
 
 def convert_merge_result(merge_str: str):
@@ -129,7 +130,7 @@ class Tokenizer:
             list[int]: List of token IDs corresponding to the input text.
         """
         logger.debug("text: %s", text)
-        pre_tokens = _pre_tokenize_text_in_chunks(text, self.special_tokens)
+        pre_tokens = pre_tokenize_text_in_chunks(text, self.special_tokens)
         logger.debug("pre-tokens: %s", pre_tokens)
 
         if not self.special_tokens:

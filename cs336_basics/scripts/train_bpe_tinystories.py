@@ -5,8 +5,8 @@ Serialize the resulting vocabulary and merges to disk for further inspection. Ho
 and memory did training take? What is the longest token in the vocabulary? Does it make sense?
 """
 
-from cs336_basics.bpe_train.bpe_tokenizer import BPETokenizer
-from cs336_basics.bpe_train.utils import save_vocab_and_merges
+from cs336_basics.bpe_tokenizer.tokenizer_trainer import BPETokenizer
+from cs336_basics.bpe_tokenizer.utils import save_vocab_and_merges
 from pathlib import Path
 import os
 import time
