@@ -8,7 +8,7 @@ import numpy.typing as npt
 import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
-from cs336_basics.bpe_tokenizer.tokenizer_trainer import BPETokenizer
+from cs336_basics.bpe_tokenizer.tokenizer_trainer import TokenizerTrainer
 from cs336_basics.bpe_tokenizer.tokenizer import Tokenizer
 
 
@@ -592,7 +592,7 @@ def run_train_bpe(
                 Merges are ordered by order of creation.
     """
     #raise NotImplementedError
-    tokenizer = BPETokenizer(special_tokens=special_tokens)
-    vocab, merges = tokenizer.train(input_path, vocab_size, num_process=4, enable_mp=True)
+    tokenizer_trainer = TokenizerTrainer(special_tokens=special_tokens)
+    vocab, merges = tokenizer_trainer.train(input_path, vocab_size, num_process=4, enable_mp=True)
     return vocab, merges
 
