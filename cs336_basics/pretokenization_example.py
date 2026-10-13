@@ -3,7 +3,6 @@ from typing import BinaryIO
 import regex as re
 
 
-
 def find_chunk_boundaries(
     file: BinaryIO,
     desired_num_chunks: int,
@@ -50,7 +49,8 @@ def find_chunk_boundaries(
     # Make sure all boundaries are unique, but might be fewer than desired_num_chunks
     return sorted(set(chunk_boundaries))
 
-pattern=r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+
+pattern = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 pattern = re.compile(pattern)
 ## Usage
 with open("./data/TinyStoriesV2-GPT4-train.txt", "rb") as f:
@@ -63,9 +63,9 @@ with open("./data/TinyStoriesV2-GPT4-train.txt", "rb") as f:
         f.seek(start)
         chunk = f.read(end - start).decode("utf-8", errors="ignore")
         # Run pre-tokenization on your chunk and store the counts for each pre-token
-        
+
         # split the text using the pattern
         text_chunks = re.finditer(pattern, chunk)
-        #print(f"chunk size: {len(list(text_chunks))}")
+        # print(f"chunk size: {len(list(text_chunks))}")
         print(len(list(text_chunks)))
         break

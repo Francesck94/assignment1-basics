@@ -19,4 +19,3 @@ def get_pair_from_token(token):
     for t1, t2 in zip(token, token[1:]):
         pair_list.append((t1, t2))
     return pair_list
-

@@ -7,8 +7,6 @@ from cs336_basics.bpe_tokenizer.bpe_common import merge_pair_in_token, get_pair_
 from multiprocessing import Pool
 from collections import defaultdict
 from tqdm import tqdm
-import regex as re
-
 
 
 class TokenizerTrainer:
@@ -28,7 +26,7 @@ class TokenizerTrainer:
         input_path: str,
         vocab_size: int,
         num_process: int = 4,
-        enable_mp: bool = True,
+        #enable_mp: bool = True,
         show_progress: bool = False,
     ):
         """
@@ -41,22 +39,22 @@ class TokenizerTrainer:
             # TODO: remove this line after testing
             # boundaries = boundaries[:2]
 
-        if enable_mp:
-            pairs = list(zip(boundaries[:-1], boundaries[1:]))
-            args = [(input_path, start, end, self.special_tokens) for start, end in pairs]
+        #if enable_mp:
+        pairs = list(zip(boundaries[:-1], boundaries[1:]))
+        args = [(input_path, start, end, self.special_tokens) for start, end in pairs]
 
-            with Pool(processes=num_process) as pool:
-                # results = pool.starmap(pre_tokenize_chunk, args)
-                chunks_count = pool.starmap(get_pre_tokens_count, args)
+        with Pool(processes=num_process) as pool:
+            # results = pool.starmap(pre_tokenize_chunk, args)
+            chunks_count = pool.starmap(get_pre_tokens_count, args)
 
-            # combine results in a single dictionary
-            pre_tokens_count = {}
-            for chunk in chunks_count:
-                for term, count in chunk.items():
-                    if term in pre_tokens_count:
-                        pre_tokens_count[term] += count
-                    else:
-                        pre_tokens_count[term] = count
+        # combine results in a single dictionary
+        pre_tokens_count = {}
+        for chunk in chunks_count:
+            for term, count in chunk.items():
+                if term in pre_tokens_count:
+                    pre_tokens_count[term] += count
+                else:
+                    pre_tokens_count[term] = count
 
         # return pre_tokens_count as bytes tuples
         pre_tokens_count_bytes = {convert_key_to_tuple_of_bytes(k): v for k, v in pre_tokens_count.items()}
@@ -128,7 +126,6 @@ class TokenizerTrainer:
                 vocab[vocab_index] = token.encode("utf-8")
 
         return vocab
-
 
     def update_frequency_dict(
         self, pair_freq_dict, pre_tokens_count_bytes, pair_pre_tokens_dict, top_pair, pre_tokens_to_change
@@ -264,7 +261,6 @@ class TokenizerTrainer:
     def _get_top_pair(stats):
         return max(stats, key=lambda p: (stats[p], p))
 
-
     @staticmethod
     def _load_corpus(input_path: str):
         with open(input_path, "r") as f:
@@ -276,7 +272,6 @@ if __name__ == "__main__":
     import json
     from pathlib import Path
     import cProfile
-
 
     PARALLELIZE = True
 
@@ -322,6 +317,4 @@ if __name__ == "__main__":
         for merge in merges:
             # print(merge)
             chars_decoded = [c.decode("utf-8", errors="replace") for c in merge]
-            # replace ' ' with 'Ġ'
-            # chars_decoded = ['Ġ' if c == ' ' else c for c in chars_decoded]
             f.write(" ".join(chars_decoded) + "\n")

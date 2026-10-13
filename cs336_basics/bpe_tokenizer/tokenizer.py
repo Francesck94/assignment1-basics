@@ -3,15 +3,18 @@ import regex as re
 from typing import Iterable, Iterator
 import logging
 import json
-from cs336_basics.bpe_tokenizer.pretokenization import pre_tokenize_text_in_chunks, find_chunk_boundaries, TOKENIZE_PATTERN
+from cs336_basics.bpe_tokenizer.pretokenization import (
+    pre_tokenize_text_in_chunks,
+    find_chunk_boundaries,
+    TOKENIZE_PATTERN,
+)
 from cs336_basics.bpe_tokenizer.bpe_common import merge_pair_in_token, get_pair_from_token
 
-#TOKENIZE_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+# TOKENIZE_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 
 def convert_merge_result(merge_str: str):
@@ -145,7 +148,6 @@ class Tokenizer:
         v_list = list(map(chr, v_int))
         v_dec = "".join(v_list)
         return v_dec
-
 
     @staticmethod
     def map_to_bytes(vocab_char: str) -> bytes:

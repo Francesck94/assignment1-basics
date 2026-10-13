@@ -12,7 +12,7 @@ from collections import defaultdict
 
 TOKENIZE_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
-#TOKENIZE_PATTERN = re.compile(TOKENIZE_PATTERN)
+# TOKENIZE_PATTERN = re.compile(TOKENIZE_PATTERN)
 
 
 def find_chunk_boundaries(
@@ -215,3 +215,23 @@ def render_token(t: bytes) -> str:
     s = t.decode("utf-8", errors="replace")
     s = replace_control_characters(s)
     return s
+
+def convert_bytes_to_unicode_integers(b: bytes) -> list[int]:
+    v_int = list(b)
+    v_list = list(map(chr, v_int))
+    v_dec = "".join(v_list)
+    return v_dec
+
+def save_vocab(vocab: dict, output_path: str):
+    vocab_encoded = {k: convert_bytes_to_unicode_integers(v) for k, v in vocab.items()}
+    # vocab_encoded = {k: render_token(v) for k, v in vocab.items()}
+    vocab_encoded_inv = {v: k for k, v in vocab_encoded.items()}
+    with open(os.path.join(output_path, "vocab.json"), "w") as f:
+        json.dump(vocab_encoded_inv, f)
+
+def save_merges(merges: list[tuple[bytes, bytes]], output_path: str, gpt2_scheme: bool = False):
+    with open(os.path.join(output_path, "merges.txt"), "w") as f:
+        for merge in merges:
+            # print(merge)
+            chars_decoded = [c.decode("utf-8", errors="replace") for c in merge]
+            f.write(" ".join(chars_decoded) + "\n")

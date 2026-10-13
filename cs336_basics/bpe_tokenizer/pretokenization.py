@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 TOKENIZE_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
-#TOKENIZE_PATTERN = re.compile(TOKENIZE_PATTERN)
+# TOKENIZE_PATTERN = re.compile(TOKENIZE_PATTERN)
 
 
 def find_chunk_boundaries(
