@@ -1,4 +1,8 @@
-from cs336_basics.bpe_tokenizer.utils import convert_key_to_tuple_of_bytes
+from cs336_basics.bpe_tokenizer.utils import (
+    convert_key_to_tuple_of_bytes,
+    convert_merge_result,
+    map_vocab_char_to_bytes,
+)
 import regex as re
 from typing import Iterable, Iterator
 import logging
@@ -9,29 +13,13 @@ from cs336_basics.bpe_tokenizer.pretokenization import (
     TOKENIZE_PATTERN,
 )
 from cs336_basics.bpe_tokenizer.bpe_common import merge_pair_in_token, get_pair_from_token
+from cs336_basics.bpe_tokenizer.serialize_utils import load_merges, load_vocab
 
 # TOKENIZE_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-def convert_merge_result(merge_str: str):
-    """
-    Convert a merge string result into a tuple of bytes.
-    """
-    res = merge_str.rstrip("\n")
-    res = res.split(" ")
-    if len(res) > 2:
-        if res[0]:
-            res = [res[0], " "]
-        elif res[-1]:
-            res = [" ", res[-1]]
-        else:
-            pass
-
-    return tuple(bytes(c.encode("utf-8")) for c in res)
 
 
 class Tokenizer:
@@ -51,18 +39,12 @@ class Tokenizer:
 
     @classmethod
     def from_files(cls, vocab_filepath: str, merges_filepath: str, special_tokens: list[str] | None = None):
-        # Load vocab
-        with open(vocab_filepath, "r") as f:
-            vocab = json.load(f)
 
-        # vocab = {int(v): k.encode('utf-8') for k, v in vocab.items()}
-        vocab = {int(v): Tokenizer.map_to_bytes(k) for k, v in vocab.items()}
+        # Load vocab from the given file path using the utility function
+        vocab = load_vocab(vocab_filepath)
 
-        # Load merges
-        with open(merges_filepath, "r") as f:
-            merges = f.readlines()
-
-        merges = list(map(convert_merge_result, merges))
+        # Load merges from the given file path using the utility function
+        merges = load_merges(merges_filepath)
 
         return cls(vocab, merges, special_tokens)
 
@@ -143,16 +125,16 @@ class Tokenizer:
         return original_str
 
     @staticmethod
+    def map_vocab_char_to_bytes(vocab_char: str) -> bytes:
+        temp = list(map(ord, vocab_char))
+        return bytes(temp)
+
+    @staticmethod
     def convert_bytes_to_str(v: bytes) -> str:
         v_int = list(v)
         v_list = list(map(chr, v_int))
         v_dec = "".join(v_list)
         return v_dec
-
-    @staticmethod
-    def map_to_bytes(vocab_char: str) -> bytes:
-        temp = list(map(ord, vocab_char))
-        return bytes(temp)
 
 
 if __name__ == "__main__":
@@ -170,7 +152,7 @@ if __name__ == "__main__":
         vocab_filepath=vocab_path, merges_filepath=merges_path, special_tokens=special_tokens
     )
 
-    test_string = "Hello, how are you?"
+    test_string = "Hello, how are you?<|endoftext|>"
     encoded = tokenizer.encode(test_string)
     print("Encoded:", encoded)
     decoded = tokenizer.decode(encoded)

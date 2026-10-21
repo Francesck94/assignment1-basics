@@ -1,3 +1,6 @@
+# local runs
+cs336_basics/bpe_tokenizer/tests
+
 # pytest report
 report.txt
 # cprofile output

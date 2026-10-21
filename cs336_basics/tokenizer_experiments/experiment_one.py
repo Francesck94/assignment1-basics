@@ -16,6 +16,9 @@ if __name__ == "__main__":
 
     # select 10 random chunks
     selected_chunks = random.sample(txt_chunks, 10)
-    for i, chunk in enumerate(selected_chunks):
-        print(f"Chunk {i+1}:\n{chunk}\n{'-'*40}")
+    #for i, chunk in enumerate(selected_chunks):
+    #    print(f"Chunk {i+1}:\n{chunk}\n{'-'*40}")
     print(f"Total number of chunks: {num_chunks}")
+    tokenizer = Tokenizer.fr()
+
+    

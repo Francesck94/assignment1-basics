@@ -11,13 +11,17 @@ from tqdm import tqdm
 
 class TokenizerTrainer:
     """
-    Simple BPE Tokenizer.
+    BPE Tokenizer Trainer.
+    This class is responsible for training a BPE tokenizer by learning merges from a given text corpus.
+    It maintains the vocabulary, special tokens, and the list of merges learned during training.
+    Args:
+        special_tokens (list[str] | None): List of special tokens to be included in the tokenizer. If None, no special tokens are added.
     """
 
-    def __init__(self, special_tokens: list[str]):
+    def __init__(self, special_tokens: list[str] | None = None):
         self.base_vocab_size = 256
         self.merges = []
-        self.special_tokens = special_tokens
+        self.special_tokens = special_tokens or []
         self.special_tokens_bytes = [s.encode("utf-8") for s in self.special_tokens]
         self._vocab = self._build_vocab()
 
@@ -26,7 +30,7 @@ class TokenizerTrainer:
         input_path: str,
         vocab_size: int,
         num_process: int = 4,
-        #enable_mp: bool = True,
+        # enable_mp: bool = True,
         show_progress: bool = False,
     ):
         """
@@ -39,7 +43,7 @@ class TokenizerTrainer:
             # TODO: remove this line after testing
             # boundaries = boundaries[:2]
 
-        #if enable_mp:
+        # if enable_mp:
         pairs = list(zip(boundaries[:-1], boundaries[1:]))
         args = [(input_path, start, end, self.special_tokens) for start, end in pairs]
 
@@ -269,11 +273,12 @@ class TokenizerTrainer:
 
 
 if __name__ == "__main__":
-    import json
     from pathlib import Path
     import cProfile
+    import os
 
-    PARALLELIZE = True
+    # from cs336_basics.bpe_tokenizer.utils import save_vocab, save_merges
+    from cs336_basics.bpe_tokenizer.serialize_utils import save_vocab, save_merges
 
     SPECIAL_TOKENS = ["<|endoftext|>"]  # Add more special tokens as needed
 
@@ -283,10 +288,10 @@ if __name__ == "__main__":
     # filename = '/Users/a415137/personal_projects/cs336/assignment1-basics/tests/fixtures/tinystories_sample_5M.txt'
     tokenizer = TokenizerTrainer(special_tokens=SPECIAL_TOKENS)
 
-    vocab_size = 500
-    vocab, merges = tokenizer.train(filename, vocab_size, num_process=4, enable_mp=PARALLELIZE)
+    vocab_size = 300
+    vocab, merges = tokenizer.train(filename, vocab_size, num_process=4)
 
-    print_results = False
+    print_results = True
 
     if print_results:
         print(f"Vocab: {vocab}")
@@ -301,20 +306,12 @@ if __name__ == "__main__":
 
     # Vocab str -> int (for human readability)
     # vocab_encoded = {k: v.decode("utf-8", errors="replace") for k, v in vocab.items()}
-    def convert(v: bytes):
-        v_int = list(v)
-        v_list = list(map(chr, v_int))
-        v_dec = "".join(v_list)
-        return v_dec
 
-    vocab_encoded = {k: convert(v) for k, v in vocab.items()}
+    # vocab_encoded = {k: convert(v) for k, v in vocab.items()}
     # vocab_encoded = {k: render_token(v) for k, v in vocab.items()}
-    vocab_encoded_inv = {v: k for k, v in vocab_encoded.items()}
-    with open(OUTPUT_DIR.joinpath("vocab.json"), "w") as f:
-        json.dump(vocab_encoded_inv, f)
+    # vocab_encoded_inv = {v: k for k, v in vocab_encoded.items()}
+    # with open(OUTPUT_DIR.joinpath("vocab.json"), "w") as f:
+    #    json.dump(vocab_encoded_inv, f)
 
-    with open(OUTPUT_DIR.joinpath("merges.txt"), "w") as f:
-        for merge in merges:
-            # print(merge)
-            chars_decoded = [c.decode("utf-8", errors="replace") for c in merge]
-            f.write(" ".join(chars_decoded) + "\n")
+    save_vocab(vocab, os.path.join(str(OUTPUT_DIR), "vocab.json"))
+    save_merges(merges, os.path.join(str(OUTPUT_DIR), "merges.txt"))

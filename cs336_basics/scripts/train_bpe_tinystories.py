@@ -6,7 +6,7 @@ and memory did training take? What is the longest token in the vocabulary? Does 
 """
 
 from cs336_basics.bpe_tokenizer.tokenizer_trainer import BPETokenizer
-from cs336_basics.bpe_tokenizer.utils import save_vocab_and_merges
+from cs336_basics.bpe_tokenizer.utils import save_merges, save_vocab
 from pathlib import Path
 import os
 import time
@@ -66,7 +66,8 @@ if __name__ == "__main__":
     elapsed_time_minutes = elapsed_time / 60
     print(f"Training took {elapsed_time_minutes} minutes ({elapsed_time} seconds).")
 
-    save_vocab_and_merges(vocab, merges, output_path)
+    save_vocab(vocab, output_path)
+    save_merges(merges, output_path)
 
     # save peak memory usage to a file
     with open(os.path.join(output_path, "memory_usage.log"), "a") as f:
