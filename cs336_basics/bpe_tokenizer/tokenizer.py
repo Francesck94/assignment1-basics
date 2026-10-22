@@ -1,89 +1,25 @@
-from cs336_basics.bpe_train.utils import convert_key_to_tuple_of_bytes
+from cs336_basics.bpe_tokenizer.utils import (
+    convert_key_to_tuple_of_bytes,
+    convert_merge_result,
+    map_vocab_char_to_bytes,
+)
 import regex as re
 from typing import Iterable, Iterator
 import logging
 import json
+from cs336_basics.bpe_tokenizer.pretokenization import (
+    pre_tokenize_text_in_chunks,
+    find_chunk_boundaries,
+    TOKENIZE_PATTERN,
+)
+from cs336_basics.bpe_tokenizer.bpe_common import merge_pair_in_token, get_pair_from_token
+from cs336_basics.bpe_tokenizer.serialize_utils import load_merges, load_vocab
 
-TOKENIZE_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+# TOKENIZE_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-
-
-def _split_on_special_tokens(text: str, special_tokens: list[str]) -> list[str]:
-
-    special_token_pattern = "|".join(re.escape(token) for token in special_tokens)
-    split_pattern = re.compile(special_token_pattern)
-
-    # Split the chunk on the special tokens
-    indexes = re.finditer(split_pattern, text)
-    sub_chunks = []
-    last_index = 0
-
-    for match in indexes:
-        # print(match.group())
-        # print(match.start(), match.end())
-
-        sub_chunks.append(text[last_index : match.start()])
-        sub_chunks.append(match.group())
-        last_index = match.end()
-
-    if last_index < len(text):
-        sub_chunks.append(text[last_index:])
-    if len(sub_chunks) == 0:
-        sub_chunks = [text]
-    return [sub_chunk for sub_chunk in sub_chunks if sub_chunk]
-
-
-def _pre_tokenize_text_in_chunks(text: str, special_tokens: list[str]):
-    """
-    Pre-tokenize a text in chunks.
-
-    Args:
-        text (str): The text chunk to pre-tokenize.
-        special_tokens (list[str]): List of special tokens to split on.
-
-    Returns:
-        list[str]: List of pre-tokenized text chunks.
-    """
-    if len(special_tokens) > 0:
-        chunk_without_special_tokens = _split_on_special_tokens(text, special_tokens)
-    else:
-        chunk_without_special_tokens = [text]
-
-    special_token_pattern = "|".join(re.escape(token) for token in special_tokens)
-
-    token_pattern_complete = TOKENIZE_PATTERN + f"|{special_token_pattern}"
-    token_pattern_complete = re.compile(token_pattern_complete)
-    # print(token_pattern_complete)
-    text_chunks = []
-    for sub_chunk in chunk_without_special_tokens:
-        if sub_chunk in special_tokens:
-            text_chunks.append(sub_chunk)
-        else:
-            text_chunks.extend([t.group() for t in re.finditer(token_pattern_complete, sub_chunk)])
-        logger.debug("text_chunks after pre-tokenization: %s", text_chunks)
-    return text_chunks
-
-
-def convert_merge_result(merge_str: str):
-    """
-    Convert a merge string result into a tuple of bytes.
-    """
-    res = merge_str.rstrip("\n")
-    res = res.split(" ")
-    if len(res) > 2:
-        if res[0]:
-            res = [res[0], " "]
-        elif res[-1]:
-            res = [" ", res[-1]]
-        else:
-            pass
-
-    return tuple(bytes(c.encode("utf-8")) for c in res)
 
 
 class Tokenizer:
@@ -103,18 +39,12 @@ class Tokenizer:
 
     @classmethod
     def from_files(cls, vocab_filepath: str, merges_filepath: str, special_tokens: list[str] | None = None):
-        # Load vocab
-        with open(vocab_filepath, "r") as f:
-            vocab = json.load(f)
 
-        # vocab = {int(v): k.encode('utf-8') for k, v in vocab.items()}
-        vocab = {int(v): Tokenizer.map_to_bytes(k) for k, v in vocab.items()}
+        # Load vocab from the given file path using the utility function
+        vocab = load_vocab(vocab_filepath)
 
-        # Load merges
-        with open(merges_filepath, "r") as f:
-            merges = f.readlines()
-
-        merges = list(map(convert_merge_result, merges))
+        # Load merges from the given file path using the utility function
+        merges = load_merges(merges_filepath)
 
         return cls(vocab, merges, special_tokens)
 
@@ -129,7 +59,7 @@ class Tokenizer:
             list[int]: List of token IDs corresponding to the input text.
         """
         logger.debug("text: %s", text)
-        pre_tokens = _pre_tokenize_text_in_chunks(text, self.special_tokens)
+        pre_tokens = pre_tokenize_text_in_chunks(text, self.special_tokens)
         logger.debug("pre-tokens: %s", pre_tokens)
 
         if not self.special_tokens:
@@ -153,7 +83,7 @@ class Tokenizer:
                 tokens_encoded.extend([self.inv_vocab[pre_tok_bytes]])
                 continue
 
-            tokens_pair = self._get_pair_from_token(pre_tok_bytes)
+            tokens_pair = get_pair_from_token(pre_tok_bytes)
 
             # if the token exists and has exactly one pair, proceed with merging
             if tokens_pair:
@@ -162,8 +92,8 @@ class Tokenizer:
 
                 while self.merges_dict.get(pair_to_merge) is not None:
                     # print("merging", pair_to_merge, "in", pre_tok_bytes)
-                    pre_tok_bytes = self._merge_pair_in_token(pair_to_merge, pre_tok_bytes)
-                    tokens_pair = self._get_pair_from_token(pre_tok_bytes)
+                    pre_tok_bytes = merge_pair_in_token(pair_to_merge, pre_tok_bytes)
+                    tokens_pair = get_pair_from_token(pre_tok_bytes)
                     # TODO: check if the condition: "len(tokens_pair[0]) < 2" can be removed
 
                     # if there are no more pairs to merge, break the loop
@@ -195,53 +125,16 @@ class Tokenizer:
         return original_str
 
     @staticmethod
+    def map_vocab_char_to_bytes(vocab_char: str) -> bytes:
+        temp = list(map(ord, vocab_char))
+        return bytes(temp)
+
+    @staticmethod
     def convert_bytes_to_str(v: bytes) -> str:
         v_int = list(v)
         v_list = list(map(chr, v_int))
         v_dec = "".join(v_list)
         return v_dec
-
-    @staticmethod
-    def _merge_pair_in_token(pair, token):
-        first, second = pair
-        merged_token = []
-        i = 0
-        while i < len(token):
-            if i < len(token) - 1 and token[i] == first and token[i + 1] == second:
-                merged_token.append(first + second)
-                i += 2
-            else:
-                merged_token.append(token[i])
-                i += 1
-        return tuple(merged_token)
-
-    @staticmethod
-    def _get_pair_from_token(token: tuple) -> list[tuple]:
-        pair_list = []
-        # for i in range(len(token) - 1):
-        #    pair_list.append((token[i], token[i + 1]))
-        for t1, t2 in zip(token, token[1:]):
-            pair_list.append((t1, t2))
-        return pair_list
-
-    @staticmethod
-    def _merge_pair_in_token(pair: tuple, token: tuple) -> tuple:
-        first, second = pair
-        merged_token = []
-        i = 0
-        while i < len(token):
-            if i < len(token) - 1 and token[i] == first and token[i + 1] == second:
-                merged_token.append(first + second)
-                i += 2
-            else:
-                merged_token.append(token[i])
-                i += 1
-        return tuple(merged_token)
-
-    @staticmethod
-    def map_to_bytes(vocab_char):
-        temp = list(map(ord, vocab_char))
-        return bytes(temp)
 
 
 if __name__ == "__main__":
@@ -259,7 +152,7 @@ if __name__ == "__main__":
         vocab_filepath=vocab_path, merges_filepath=merges_path, special_tokens=special_tokens
     )
 
-    test_string = "Hello, how are you?"
+    test_string = "Hello, how are you?<|endoftext|>"
     encoded = tokenizer.encode(test_string)
     print("Encoded:", encoded)
     decoded = tokenizer.decode(encoded)

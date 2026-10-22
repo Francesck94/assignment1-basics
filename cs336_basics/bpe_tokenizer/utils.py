@@ -11,7 +11,8 @@ from collections import defaultdict
 #### pre tokenize utils #####
 
 TOKENIZE_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-TOKENIZE_PATTERN = re.compile(TOKENIZE_PATTERN)
+
+# TOKENIZE_PATTERN = re.compile(TOKENIZE_PATTERN)
 
 
 def find_chunk_boundaries(
@@ -163,38 +164,6 @@ def convert_key_to_tuple_of_bytes(txt: str) -> tuple[bytes, ...]:
 #     return pre_token_bytes
 
 
-def save_vocab_and_merges(vocab: dict, merges: list[tuple[bytes, bytes]], output_path: str, gpt2_scheme: bool = False):
-
-    vocab_encoded = {k: v.decode("utf-8", errors="replace") for k, v in vocab.items()}
-
-    # reverse vocab
-    vocab_decoded = {v: k for k, v in vocab_encoded.items()}
-    with open(os.path.join(output_path, "vocab.json"), "w") as f:
-        json.dump(vocab_decoded, f)
-
-    with open(os.path.join(output_path, "merges.txt"), "w") as f:
-        for merge in merges:
-            chars_decoded = [c.decode("utf-8", errors="replace") for c in merge]
-            if gpt2_scheme:
-                chars_decoded = ["Ġ" if c == " " else c for c in chars_decoded]
-            f.write(" ".join(chars_decoded) + "\n")
-
-
-def load_vocab_and_merges(input_path: str) -> tuple[dict, list[tuple[bytes, bytes]]]:
-    with open(os.path.join(input_path, "vocab.json"), "r") as f:
-        vocab_decoded = json.load(f)
-    vocab_encoded = {v: k for k, v in vocab_decoded.items()}
-
-    merges = []
-    with open(os.path.join(input_path, "merges.txt"), "r") as f:
-        for line in f:
-            chars = line.strip().split(" ")
-            chars = [" " if c == "Ġ" else c for c in chars]
-            merges.append(tuple(bytes([b]) for c in chars for b in c.encode("utf-8")))
-
-    return vocab_encoded, merges
-
-
 def replace_control_characters(s: str) -> str:
     # we don't want to print control characters
     # which distort the output (e.g. \n or much worse)
@@ -214,3 +183,49 @@ def render_token(t: bytes) -> str:
     s = t.decode("utf-8", errors="replace")
     s = replace_control_characters(s)
     return s
+
+
+def convert_bytes_to_unicode_integers(b: bytes) -> list[int]:
+    v_int = list(b)
+    v_list = list(map(chr, v_int))
+    v_dec = "".join(v_list)
+    return v_dec
+
+
+def convert_merge_result(merge_str: str):
+    """
+    Convert a merge string result into a tuple of bytes.
+    """
+    res = merge_str.rstrip("\n")
+    res = res.split(" ")
+    if len(res) > 2:
+        if res[0]:
+            res = [res[0], " "]
+        elif res[-1]:
+            res = [" ", res[-1]]
+        else:
+            pass
+
+    return tuple(bytes(c.encode("utf-8")) for c in res)
+
+
+def save_vocab(vocab: dict, output_path: str):
+    vocab_encoded = {k: convert_bytes_to_unicode_integers(v) for k, v in vocab.items()}
+    # vocab_encoded = {k: render_token(v) for k, v in vocab.items()}
+    vocab_encoded_inv = {v: k for k, v in vocab_encoded.items()}
+    with open(os.path.join(output_path, "vocab.json"), "w") as f:
+        json.dump(vocab_encoded_inv, f)
+
+
+def save_merges(merges: list[tuple[bytes, bytes]], output_path: str, gpt2_scheme: bool = False):
+    with open(os.path.join(output_path, "merges.txt"), "w") as f:
+        for merge in merges:
+            # print(merge)
+            # chars_decoded = [c.decode("utf-8", errors="replace") for c in merge]
+            merges_decoded = [convert_bytes_to_unicode_integers(c) for c in merge]
+            f.write(" ".join(merges_decoded) + "\n")
+
+
+def map_vocab_char_to_bytes(vocab_char: str) -> bytes:
+    temp = list(map(ord, vocab_char))
+    return bytes(temp)
