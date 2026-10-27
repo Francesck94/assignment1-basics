@@ -1,2 +1,6 @@
 - bpe tokenizer:
-    - bpre tokenizer training (done)
+    - bpe tokenizer training (done)
+    - bpe encode decode (done)
+    - experiments (todo)
+
+- transformer

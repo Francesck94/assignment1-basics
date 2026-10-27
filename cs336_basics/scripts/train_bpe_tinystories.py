@@ -5,14 +5,15 @@ Serialize the resulting vocabulary and merges to disk for further inspection. Ho
 and memory did training take? What is the longest token in the vocabulary? Does it make sense?
 """
 
-from cs336_basics.bpe_tokenizer.tokenizer_trainer import BPETokenizer
-from cs336_basics.bpe_tokenizer.utils import save_merges, save_vocab
+from cs336_basics.bpe_tokenizer.tokenizer_trainer import TokenizerTrainer
+from cs336_basics.bpe_tokenizer.serialize_utils import save_merges, save_vocab
 from pathlib import Path
 import os
 import time
 import psutil
 import threading
 import tracemalloc
+from pathlib import Path
 
 
 def poll_memory(output_path, interval=60):
@@ -46,9 +47,9 @@ if __name__ == "__main__":
     SPECIAL_TOKENS = ["<|endoftext|>"]
     VOCAB_SIZE = 10000
 
-    tokenizer = BPETokenizer(special_tokens=SPECIAL_TOKENS)
+    tokenizer = TokenizerTrainer(special_tokens=SPECIAL_TOKENS)
 
-    input_path = "./data/TinyStoriesV2-GPT4-train.txt"
+    # input_path = "./data/TinyStoriesV2-GPT4-train.txt"
 
     # Start memory polling in a separate thread
     # memory_thread = threading.Thread(target=poll_memory, args=(output_path,), daemon=True)
@@ -66,8 +67,8 @@ if __name__ == "__main__":
     elapsed_time_minutes = elapsed_time / 60
     print(f"Training took {elapsed_time_minutes} minutes ({elapsed_time} seconds).")
 
-    save_vocab(vocab, output_path)
-    save_merges(merges, output_path)
+    save_vocab(vocab, os.path.join(output_path, "vocab.json"))
+    save_merges(merges, os.path.join(output_path, "merges.txt"))
 
     # save peak memory usage to a file
     with open(os.path.join(output_path, "memory_usage.log"), "a") as f:
